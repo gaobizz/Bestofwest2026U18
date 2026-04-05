@@ -434,37 +434,41 @@ function App(){
       })()}
     </div>
 
-    {/* Team picker modal */}
-    {showTeamPicker&&<div style={{background:th.syncBg,border:"1px solid "+th.border,padding:12}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700}}>SELECT YOUR TEAM</span>
-        <button onClick={()=>setShowTeamPicker(false)} style={{background:"none",border:"none",color:th.textMuted,fontSize:"1.1em",cursor:"pointer",padding:"4px 8px"}}>✕</button>
-      </div>
-      {["E","F","G","H"].map(pk=>(<div key={pk} style={{marginBottom:8}}>
-        <div style={{fontSize:"0.7em",color:th.textDark,fontFamily:"monospace",marginBottom:4}}>Pool {pk}</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
-          {POOLS[pk].teams.map(t=>(<button key={t.id} onClick={()=>{setHomeTeam(t.id);setPt(pk);setShowTeamPicker(false)}} style={{padding:"8px 6px",borderRadius:6,border:t.id===homeTeam?"2px solid "+th.accent:"1px solid "+th.border,background:t.id===homeTeam?th.accentBg:th.card,color:t.id===homeTeam?th.accent:th.text,fontSize:"0.78em",fontWeight:t.id===homeTeam?700:500,cursor:"pointer",textAlign:"left"}}>{t.id} {t.name}</button>))}
+    {/* Team picker overlay dropdown */}
+    {showTeamPicker&&<div onClick={()=>setShowTeamPicker(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:100,padding:"100px 16px 16px"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:th.card,border:"1px solid "+th.border,borderRadius:12,padding:12,width:"100%",maxWidth:420,maxHeight:"75vh",overflowY:"auto",boxShadow:"0 10px 40px rgba(0,0,0,0.5)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,position:"sticky",top:-12,background:th.card,padding:"8px 0",margin:"-12px 0 8px",borderBottom:"1px solid "+th.border}}>
+          <span style={{fontSize:"0.78em",color:th.text,fontFamily:"monospace",fontWeight:700}}>SELECT TEAM</span>
+          <button onClick={()=>setShowTeamPicker(false)} style={{background:"none",border:"none",color:th.textMuted,fontSize:"1.3em",cursor:"pointer",padding:"4px 10px",lineHeight:1}}>✕</button>
         </div>
-      </div>))}
+        {["E","F","G","H"].map(pk=>(<div key={pk} style={{marginBottom:10}}>
+          <div style={{fontSize:"0.72em",color:th.textDim,fontFamily:"monospace",marginBottom:4,fontWeight:700}}>Pool {pk}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+            {POOLS[pk].teams.map(t=>(<button key={t.id} onClick={()=>{setHomeTeam(t.id);setPt(pk);setShowTeamPicker(false)}} style={{padding:"10px 8px",borderRadius:6,border:t.id===homeTeam?"2px solid "+th.accent:"1px solid "+th.border,background:t.id===homeTeam?th.accentBg:th.syncBg,color:t.id===homeTeam?th.accent:th.text,fontSize:"0.8em",fontWeight:t.id===homeTeam?700:500,cursor:"pointer",textAlign:"left"}}>{t.id} {t.name}</button>))}
+          </div>
+        </div>))}
+      </div>
     </div>}
 
     {/* Settings panel */}
-    {showSettings&&<div style={{background:th.syncBg,border:"1px solid "+th.border,padding:12}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700}}>SETTINGS</span>
-        <button onClick={()=>setShowSettings(false)} style={{background:"none",border:"none",color:th.textMuted,fontSize:"1.1em",cursor:"pointer",padding:"4px 8px"}}>✕</button>
-      </div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <span style={{fontSize:"0.85em",color:th.text}}>Theme</span>
-        <div style={{display:"flex",gap:4}}>
-          <button onClick={()=>setMode("dark")} style={{padding:"4px 12px",borderRadius:4,border:"1px solid "+th.border,background:mode==="dark"?th.accent:"transparent",color:mode==="dark"?"#000":th.textMuted,fontSize:"0.78em",cursor:"pointer",fontWeight:700}}>Dark</button>
-          <button onClick={()=>setMode("light")} style={{padding:"4px 12px",borderRadius:4,border:"1px solid "+th.border,background:mode==="light"?th.accent:"transparent",color:mode==="light"?"#000":th.textMuted,fontSize:"0.78em",cursor:"pointer",fontWeight:700}}>Light</button>
+    {showSettings&&<div onClick={()=>setShowSettings(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"100px 16px 16px"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:th.card,border:"1px solid "+th.border,borderRadius:12,padding:16,width:"100%",maxWidth:420,boxShadow:"0 10px 40px rgba(0,0,0,0.5)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:10,borderBottom:"1px solid "+th.border}}>
+          <span style={{fontSize:"0.85em",color:th.text,fontFamily:"monospace",fontWeight:700}}>SETTINGS</span>
+          <button onClick={()=>setShowSettings(false)} style={{background:"none",border:"none",color:th.textMuted,fontSize:"1.3em",cursor:"pointer",padding:"4px 10px",lineHeight:1}}>✕</button>
         </div>
-      </div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontSize:"0.85em",color:th.text}}>Font Size</span>
-        <div style={{display:"flex",gap:4}}>
-          {[{l:"S",v:12},{l:"M",v:14},{l:"L",v:16},{l:"XL",v:18}].map(f=>(<button key={f.v} onClick={()=>setFsize(f.v)} style={{padding:"4px 10px",borderRadius:4,border:"1px solid "+th.border,background:fsize===f.v?th.accent:"transparent",color:fsize===f.v?"#000":th.textMuted,fontSize:"0.78em",cursor:"pointer",fontWeight:700}}>{f.l}</button>))}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <span style={{fontSize:"0.9em",color:th.text}}>Theme</span>
+          <div style={{display:"flex",gap:4}}>
+            <button onClick={()=>setMode("dark")} style={{padding:"6px 14px",borderRadius:4,border:"1px solid "+th.border,background:mode==="dark"?th.accent:"transparent",color:mode==="dark"?"#000":th.textMuted,fontSize:"0.82em",cursor:"pointer",fontWeight:700}}>Dark</button>
+            <button onClick={()=>setMode("light")} style={{padding:"6px 14px",borderRadius:4,border:"1px solid "+th.border,background:mode==="light"?th.accent:"transparent",color:mode==="light"?"#000":th.textMuted,fontSize:"0.82em",cursor:"pointer",fontWeight:700}}>Light</button>
+          </div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:"0.9em",color:th.text}}>Font Size</span>
+          <div style={{display:"flex",gap:4}}>
+            {[{l:"S",v:12},{l:"M",v:14},{l:"L",v:16},{l:"XL",v:18}].map(f=>(<button key={f.v} onClick={()=>setFsize(f.v)} style={{padding:"6px 12px",borderRadius:4,border:"1px solid "+th.border,background:fsize===f.v?th.accent:"transparent",color:fsize===f.v?"#000":th.textMuted,fontSize:"0.82em",cursor:"pointer",fontWeight:700}}>{f.l}</button>))}
+          </div>
         </div>
       </div>
     </div>}
@@ -544,8 +548,9 @@ function App(){
           {qfGame?(<>
             <div style={{background:th.card,border:"1px solid "+th.border,borderRadius:10,padding:12,marginBottom:12}}>
               <div style={{fontSize:"0.7em",color:bracketColor,fontFamily:"monospace",fontWeight:700,letterSpacing:1.5,marginBottom:4}}>{tierLabel}</div>
-              <div style={{fontSize:"1.1em",fontWeight:800,color:th.text}}>{homeT?.name}'s Path</div>
-              <div style={{fontSize:"0.75em",color:th.textMuted,marginTop:2}}>Pool {homePk} #{homeRank} · {homeRec?.w}-{homeRec?.l} in pool play</div>
+              <div style={{fontSize:"1.1em",fontWeight:800,color:th.text}}>Playoff Path</div>
+              <div style={{fontSize:"0.85em",color:th.textDim,marginTop:2,fontWeight:600}}>{homeT?.name}</div>
+              <div style={{fontSize:"0.72em",color:th.textMuted,marginTop:4}}>Pool {homePk} #{homeRank} · {homeRec?.w}-{homeRec?.l} in pool play</div>
             </div>
             <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8,letterSpacing:1}}>QUARTERFINAL</div>
             <QFC qf={qfGame}/>
