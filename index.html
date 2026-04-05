@@ -331,7 +331,7 @@ const themes={
 };
 
 const SK="apex-v13";
-const APP_VERSION="2026.04.05.6";
+const APP_VERSION="2026.04.05.7";
 
 // Cache-busting reload - works on iOS/Android homescreen apps
 function hardReload(){
@@ -402,6 +402,8 @@ function App(){
   const[showTeamPicker,setShowTeamPicker]=useState(false);
   const[tier1Open,setTier1Open]=useState(true);
   const[tier2Open,setTier2Open]=useState(true);
+  const[rOpen,setROpen]=useState({t1qf:true,t1semi:true,t1final:true,t2qf:true,t2semi:true,t2final:true});
+  const tR=k=>setROpen({...rOpen,[k]:!rOpen[k]});
 
   const th=themes[mode];
   const homePk=homeTeam[0];
@@ -965,13 +967,22 @@ function App(){
           </div>
           <span style={{fontSize:"1.2em",color:th.textMuted,pointerEvents:"none",transition:"transform 0.2s",transform:tier1Open?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
         </div>
-        {tier1Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"10px 10px 12px",marginBottom:10}}>
-          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8}}>QUARTERFINALS</div>
-          {T1Q.map(q=><QFC key={q.id} qf={q}/>)}
-          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:12,marginBottom:6}}>SEMI-FINALS — Sunday 12:15 PM</div>
-          {ST1.slice(0,4).map(g=><KO key={g.id} g={g}/>)}
-          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:12,marginBottom:6}}>FINALS — Sunday 5:15 PM</div>
-          {ST1.slice(4).map(g=><KO key={g.id} g={g}/>)}
+        {tier1Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"8px 10px 10px",marginBottom:10}}>
+          <div onClick={()=>tR("t1qf")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",borderBottom:rOpen.t1qf?"1px solid "+th.border:"none"}}>
+            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>QUARTERFINALS — Sat 6:30 PM</span>
+            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t1qf?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          </div>
+          {rOpen.t1qf&&<div style={{paddingTop:8}}>{T1Q.map(q=><QFC key={q.id} qf={q}/>)}</div>}
+          <div onClick={()=>tR("t1semi")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",marginTop:rOpen.t1qf?4:0,borderTop:"1px solid "+th.border,borderBottom:rOpen.t1semi?"1px solid "+th.border:"none"}}>
+            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>SEMI-FINALS — Sun 12:15 PM</span>
+            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t1semi?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          </div>
+          {rOpen.t1semi&&<div style={{paddingTop:8}}>{ST1.slice(0,4).map(g=><KO key={g.id} g={g}/>)}</div>}
+          <div onClick={()=>tR("t1final")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",marginTop:rOpen.t1semi?4:0,borderTop:"1px solid "+th.border,borderBottom:rOpen.t1final?"1px solid "+th.border:"none"}}>
+            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>FINALS — Sun 5:15 PM</span>
+            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t1final?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          </div>
+          {rOpen.t1final&&<div style={{paddingTop:8}}>{ST1.slice(4).map(g=><KO key={g.id} g={g}/>)}</div>}
         </div>}
 
         {/* TIER 2 */}
@@ -982,13 +993,22 @@ function App(){
           </div>
           <span style={{fontSize:"1.2em",color:th.textMuted,pointerEvents:"none",transition:"transform 0.2s",transform:tier2Open?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
         </div>
-        {tier2Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"10px 10px 12px",marginBottom:10}}>
-          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8}}>QUARTERFINALS</div>
-          {T2Q.map(q=><QFC key={q.id} qf={q}/>)}
-          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:12,marginBottom:6}}>SEMI-FINALS — Sunday 9:45 AM</div>
-          {ST2.slice(0,4).map(g=><KO key={g.id} g={g}/>)}
-          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:12,marginBottom:6}}>FINALS — Sunday 2:45 PM</div>
-          {ST2.slice(4).map(g=><KO key={g.id} g={g}/>)}
+        {tier2Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"8px 10px 10px",marginBottom:10}}>
+          <div onClick={()=>tR("t2qf")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",borderBottom:rOpen.t2qf?"1px solid "+th.border:"none"}}>
+            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>QUARTERFINALS — Sat 5:15 PM</span>
+            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t2qf?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          </div>
+          {rOpen.t2qf&&<div style={{paddingTop:8}}>{T2Q.map(q=><QFC key={q.id} qf={q}/>)}</div>}
+          <div onClick={()=>tR("t2semi")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",marginTop:rOpen.t2qf?4:0,borderTop:"1px solid "+th.border,borderBottom:rOpen.t2semi?"1px solid "+th.border:"none"}}>
+            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>SEMI-FINALS — Sun 9:45 AM</span>
+            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t2semi?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          </div>
+          {rOpen.t2semi&&<div style={{paddingTop:8}}>{ST2.slice(0,4).map(g=><KO key={g.id} g={g}/>)}</div>}
+          <div onClick={()=>tR("t2final")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",marginTop:rOpen.t2semi?4:0,borderTop:"1px solid "+th.border,borderBottom:rOpen.t2final?"1px solid "+th.border:"none"}}>
+            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>FINALS — Sun 2:45 PM</span>
+            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t2final?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          </div>
+          {rOpen.t2final&&<div style={{paddingTop:8}}>{ST2.slice(4).map(g=><KO key={g.id} g={g}/>)}</div>}
         </div>}
       </div>}
     </div>
