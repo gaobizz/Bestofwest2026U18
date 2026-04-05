@@ -97,13 +97,10 @@ function parseBracket(rows,poolStandings,logs){
     const c=String(cell||"").toLowerCase().trim().replace(/[.,]/g,"").replace(/\s+/g," ");
     if(!c)return null;
     if(TEAM_ABBREV[c])return TEAM_ABBREV[c];
-    // Longest-match first to avoid "204" matching inside other strings
-    const sorted=Object.keys(TEAM_ABBREV).sort((a,b)=>b.length-a.length);
-    for(const abbr of sorted){if(c===abbr||c.startsWith(abbr+" ")||c.endsWith(" "+abbr)||c.includes(" "+abbr+" "))return TEAM_ABBREV[abbr]}
     return null;
   };
 
-  const qfSlotId=(seed)=>{const pk=seed[0],sn=parseInt(seed[1]);const st=poolStandings[pk];if(!st||!st[sn-1])return null;return st[sn-1].id};
+  const qfSlotId=seed=>{const pk=seed[0],sn=parseInt(seed[1]);const st=poolStandings[pk];if(!st||!st[sn-1])return null;return st[sn-1].id};
 
   const resolveFromChain=(source,passScores)=>{
     if(!source)return null;
@@ -115,42 +112,50 @@ function parseBracket(rows,poolStandings,logs){
     if(hW===0&&aW===0)return null;
     const want=r==="winner"?(hW>aW?"home":"away"):(hW>aW?"away":"home");
     const qf=[...T1Q,...T2Q].find(q=>q.id===gid);
-    if(qf){return want==="home"?qfSlotId(qf.seeds[0]):qfSlotId(qf.seeds[1])}
+    if(qf)return want==="home"?qfSlotId(qf.seeds[0]):qfSlotId(qf.seeds[1]);
     const later=[...ST1,...ST2].find(x=>x.id===gid);
     if(later){const hid=resolveFromChain(later.homeFrom,passScores),aid=resolveFromChain(later.awayFrom,passScores);return want==="home"?hid:aid}
     return null;
   };
 
-  const findLabel=(label)=>{for(let r=0;r<rows.length;r++){const row=rows[r]||[];for(let c=0;c<row.length;c++){if(String(row[c]||"").trim().toUpperCase()===label)return{r,c}}}return null};
+  const findLabel=label=>{for(let r=0;r<rows.length;r++){const row=rows[r]||[];for(let c=0;c<row.length;c++){if(String(row[c]||"").trim().toUpperCase()===label)return{r,c}}}return null};
 
+  // For each game: find label, then search tight window (r-2..r+3, c+1..c+2)
+  // for BOTH winner team name AND set scores. Must find both to accept.
   const tryParseGame=(gameId,homeId,awayId)=>{
     if(!homeId||!awayId)return null;
     const label=gameId.toUpperCase();
     const loc=findLabel(label);
-    if(!loc){logs.push("  "+label+": label not found");return null}
+    if(!loc){logs.push("  "+label+": not found");return null}
     let scoresCell=null,winnerId=null;
-    for(let dr=-3;dr<=5;dr++){
-      for(let dc=-4;dc<=10;dc++){
+    for(let dr=-2;dr<=3;dr++){
+      for(let dc=1;dc<=2;dc++){
         const cell=String((rows[loc.r+dr]||[])[loc.c+dc]||"").trim();
         if(!cell)continue;
-        if(!scoresCell&&/^\d{1,2}-\d{1,2}(\s*,\s*\d{1,2}-\d{1,2}){0,3}$/.test(cell))scoresCell=cell;
+        // Set scores: comma-separated with at least one number >= 15 (volleyball)
+        if(!scoresCell&&/^\d{1,2}-\d{1,2}(\s*,\s*\d{1,2}-\d{1,2}){0,3}$/.test(cell)){
+          const nums=(cell.match(/\d{1,2}/g)||[]).map(n=>parseInt(n));
+          if(nums.length>0&&Math.max(...nums)>=15)scoresCell=cell;
+        }
+        // Winner name: must be one of the two teams in this game
         if(!winnerId){const id=matchAbbrev(cell);if(id&&(id===homeId||id===awayId))winnerId=id}
       }
     }
     if(!scoresCell){logs.push("  "+label+": no scores");return null}
-    const raw=[];const re=/(\d{1,2})-(\d{1,2})/g;let m;while((m=re.exec(scoresCell))!==null)raw.push({a:parseInt(m[1]),b:parseInt(m[2])});
+    if(!winnerId){logs.push("  "+label+": winner not identified ("+homeId+"/"+awayId+")");return null}
+    const raw=[];const re=/(\d{1,2})-(\d{1,2})/g;let m;
+    while((m=re.exec(scoresCell))!==null)raw.push({a:parseInt(m[1]),b:parseInt(m[2])});
     if(!raw.length)return null;
     let fw=0,sw=0;raw.forEach(s=>{if(s.a>s.b)fw++;else if(s.b>s.a)sw++});
     const firstWin=fw>sw;
     let sets;
     if(winnerId===homeId)sets=firstWin?raw.map(s=>({home:s.a,away:s.b})):raw.map(s=>({home:s.b,away:s.a}));
-    else if(winnerId===awayId)sets=firstWin?raw.map(s=>({home:s.b,away:s.a})):raw.map(s=>({home:s.a,away:s.b}));
-    else sets=raw.map(s=>({home:s.a,away:s.b}));
-    logs.push("  "+label+" → "+sets.map(s=>s.home+"-"+s.away).join(", ")+(winnerId?" (W:"+winnerId+")":" (?)"));
+    else sets=firstWin?raw.map(s=>({home:s.b,away:s.a})):raw.map(s=>({home:s.a,away:s.b}));
+    logs.push("  "+label+" → "+sets.map(s=>s.home+"-"+s.away).join(", ")+" W:"+winnerId);
     return{sets};
   };
 
-  // Pass 1: QFs
+  // Pass 1: QFs (home/away from pool standings)
   for(const qf of [...T1Q,...T2Q]){
     const hid=qfSlotId(qf.seeds[0]),aid=qfSlotId(qf.seeds[1]);
     const r=tryParseGame(qf.id,hid,aid);
@@ -230,7 +235,7 @@ const themes={
 };
 
 const SK="apex-v13";
-const APP_VERSION="2026.04.05.1";
+const APP_VERSION="2026.04.05.2";
 
 // Cache-busting reload - works on iOS/Android homescreen apps
 function hardReload(){
@@ -321,7 +326,11 @@ function App(){
       if(brows){logs.push("  "+brows.length+" rows");const bp=parseBracket(brows,standings,logs);Object.assign(ap,bp);tot+=Object.keys(bp).length}
       else{logs.push("  fetch failed")}
     }catch(e){logs.push("  ERR: "+e.message)}
-    setDl(logs);if(tot>0){s({...sc,...ap});setFs("success");setFm("✓ "+tot+" games synced")}else{setFs("error");setFm("No scores found — check debug")}setTimeout(()=>setFs("idle"),5000)}
+    setDl(logs);if(tot>0){
+      // Clear all bracket (z/y) scores from existing state; fresh sync replaces them
+      const cleaned={};Object.keys(sc).forEach(k=>{if(!/^[zy]/.test(k))cleaned[k]=sc[k]});
+      s({...cleaned,...ap});setFs("success");setFm("✓ "+tot+" games synced")
+    }else{setFs("error");setFm("No scores found — check debug")}setTimeout(()=>setFs("idle"),5000)}
   useEffect(()=>{doF()},[]);
 
   const up=(gid,sets)=>{const n={...sc,[gid]:{sets}};s(n)};
