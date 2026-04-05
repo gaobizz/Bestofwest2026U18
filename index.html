@@ -62,6 +62,116 @@ const ST2=[
 // --- FETCH & PARSE ---
 async function fetchPool(pk){const gid=GIDS[pk];const urls=[`https://docs.google.com/spreadsheets/d/${SID}/export?format=csv&gid=${gid}`,`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&gid=${gid}`];for(const url of urls){try{const r=await fetch(url,{redirect:"follow"});if(!r.ok)continue;const t=await r.text();if(t.length<30||t.includes("<!DOCTYPE"))continue;return{csv:t,rows:Papa.parse(t,{skipEmptyLines:false}).data}}catch(e){continue}}throw new Error("fetch failed")}
 
+// Team abbreviations used in the bracket sheet
+const TEAM_ABBREV={
+  "apex":"G1","apex vc":"G1",
+  "fvvc":"E2","fraser valley":"E2","fraser valley vc":"E2",
+  "winman":"F1","winman vc":"F1",
+  "navc":"F2","northern alberta":"F2","northern alberta vc":"F2",
+  "cakvc":"E1","central alberta kings":"E1","central alberta":"E1",
+  "brandon":"G4","brandon vc":"G4",
+  "dinos":"H2","dinos vc":"H2",
+  "bisons":"E3","junior bisons":"E3","jr bisons":"E3",
+  "element":"F3","element vc":"F3",
+  "summit":"G3","summit vc":"G3",
+  "huskie":"H3","huskie vc":"H3","huskies":"H3",
+  "jr dinos":"G2","jr. dinos":"G2","junior dinos":"G2",
+  "204":"H4","204 vc":"H4",
+  "canwest":"F4","canada west":"F4","canada west vc":"F4",
+  "leth":"E4","lethbridge":"E4","lethbridge vc":"E4",
+  "cascades":"H1","junior cascades":"H1","jr cascades":"H1"
+};
+
+async function fetchBracket(){
+  const gid="1471380517";
+  const urls=[`https://docs.google.com/spreadsheets/d/${SID}/export?format=csv&gid=${gid}`,`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&gid=${gid}`];
+  for(const url of urls){try{const r=await fetch(url,{redirect:"follow"});if(!r.ok)continue;const t=await r.text();if(t.length<30||t.includes("<!DOCTYPE"))continue;return Papa.parse(t,{skipEmptyLines:false}).data}catch(e){continue}}
+  return null;
+}
+
+function parseBracket(rows,poolStandings,logs){
+  const parsed={};
+  if(!rows||!rows.length)return parsed;
+
+  const matchAbbrev=cell=>{
+    const c=String(cell||"").toLowerCase().trim().replace(/[.,]/g,"").replace(/\s+/g," ");
+    if(!c)return null;
+    if(TEAM_ABBREV[c])return TEAM_ABBREV[c];
+    // Longest-match first to avoid "204" matching inside other strings
+    const sorted=Object.keys(TEAM_ABBREV).sort((a,b)=>b.length-a.length);
+    for(const abbr of sorted){if(c===abbr||c.startsWith(abbr+" ")||c.endsWith(" "+abbr)||c.includes(" "+abbr+" "))return TEAM_ABBREV[abbr]}
+    return null;
+  };
+
+  const qfSlotId=(seed)=>{const pk=seed[0],sn=parseInt(seed[1]);const st=poolStandings[pk];if(!st||!st[sn-1])return null;return st[sn-1].id};
+
+  const resolveFromChain=(source,passScores)=>{
+    if(!source)return null;
+    const{gid,r}=source;
+    const g=passScores[gid];
+    if(!g||!g.sets||!g.sets.length)return null;
+    let hW=0,aW=0;
+    for(const s of g.sets){if(s.home>s.away)hW++;else if(s.away>s.home)aW++}
+    if(hW===0&&aW===0)return null;
+    const want=r==="winner"?(hW>aW?"home":"away"):(hW>aW?"away":"home");
+    const qf=[...T1Q,...T2Q].find(q=>q.id===gid);
+    if(qf){return want==="home"?qfSlotId(qf.seeds[0]):qfSlotId(qf.seeds[1])}
+    const later=[...ST1,...ST2].find(x=>x.id===gid);
+    if(later){const hid=resolveFromChain(later.homeFrom,passScores),aid=resolveFromChain(later.awayFrom,passScores);return want==="home"?hid:aid}
+    return null;
+  };
+
+  const findLabel=(label)=>{for(let r=0;r<rows.length;r++){const row=rows[r]||[];for(let c=0;c<row.length;c++){if(String(row[c]||"").trim().toUpperCase()===label)return{r,c}}}return null};
+
+  const tryParseGame=(gameId,homeId,awayId)=>{
+    if(!homeId||!awayId)return null;
+    const label=gameId.toUpperCase();
+    const loc=findLabel(label);
+    if(!loc){logs.push("  "+label+": label not found");return null}
+    let scoresCell=null,winnerId=null;
+    for(let dr=-3;dr<=5;dr++){
+      for(let dc=-4;dc<=10;dc++){
+        const cell=String((rows[loc.r+dr]||[])[loc.c+dc]||"").trim();
+        if(!cell)continue;
+        if(!scoresCell&&/^\d{1,2}-\d{1,2}(\s*,\s*\d{1,2}-\d{1,2}){0,3}$/.test(cell))scoresCell=cell;
+        if(!winnerId){const id=matchAbbrev(cell);if(id&&(id===homeId||id===awayId))winnerId=id}
+      }
+    }
+    if(!scoresCell){logs.push("  "+label+": no scores");return null}
+    const raw=[];const re=/(\d{1,2})-(\d{1,2})/g;let m;while((m=re.exec(scoresCell))!==null)raw.push({a:parseInt(m[1]),b:parseInt(m[2])});
+    if(!raw.length)return null;
+    let fw=0,sw=0;raw.forEach(s=>{if(s.a>s.b)fw++;else if(s.b>s.a)sw++});
+    const firstWin=fw>sw;
+    let sets;
+    if(winnerId===homeId)sets=firstWin?raw.map(s=>({home:s.a,away:s.b})):raw.map(s=>({home:s.b,away:s.a}));
+    else if(winnerId===awayId)sets=firstWin?raw.map(s=>({home:s.b,away:s.a})):raw.map(s=>({home:s.a,away:s.b}));
+    else sets=raw.map(s=>({home:s.a,away:s.b}));
+    logs.push("  "+label+" → "+sets.map(s=>s.home+"-"+s.away).join(", ")+(winnerId?" (W:"+winnerId+")":" (?)"));
+    return{sets};
+  };
+
+  // Pass 1: QFs
+  for(const qf of [...T1Q,...T2Q]){
+    const hid=qfSlotId(qf.seeds[0]),aid=qfSlotId(qf.seeds[1]);
+    const r=tryParseGame(qf.id,hid,aid);
+    if(r)parsed[qf.id]=r;
+  }
+  // Pass 2: Semis
+  let merged={...parsed};
+  for(const game of [...ST1.slice(0,4),...ST2.slice(0,4)]){
+    const hid=resolveFromChain(game.homeFrom,merged),aid=resolveFromChain(game.awayFrom,merged);
+    const r=tryParseGame(game.id,hid,aid);
+    if(r){parsed[game.id]=r;merged[game.id]=r}
+  }
+  // Pass 3: Finals
+  for(const game of [...ST1.slice(4),...ST2.slice(4)]){
+    const hid=resolveFromChain(game.homeFrom,merged),aid=resolveFromChain(game.awayFrom,merged);
+    const r=tryParseGame(game.id,hid,aid);
+    if(r){parsed[game.id]=r;merged[game.id]=r}
+  }
+  return parsed;
+}
+
 function parseMatrix(pk,rows,logs){
   const pool=POOLS[pk],parsed={};
   const matchTeam=(cell,team)=>{const c=String(cell||"").toLowerCase().trim();if(!c)return false;return c.includes(team.id.toLowerCase())||c.includes(team.name.toLowerCase().replace(/\s+(vc|volleyball club)$/i,""))};
@@ -120,7 +230,7 @@ const themes={
 };
 
 const SK="apex-v13";
-const APP_VERSION="2026.04.04.2";
+const APP_VERSION="2026.04.05.1";
 
 // Cache-busting reload - works on iOS/Android homescreen apps
 function hardReload(){
@@ -202,6 +312,15 @@ function App(){
 
   async function doF(){setFs("loading");setFm("Syncing...");const logs=[],ap={};let tot=0;
     for(const pk of["E","F","G","H"]){logs.push("Pool "+pk+":");try{const{rows}=await fetchPool(pk);logs.push("  "+rows.length+" rows");const p=parseMatrix(pk,rows,logs);Object.assign(ap,p);tot+=Object.keys(p).length}catch(e){logs.push("  ERR: "+e.message)}}
+    // Compute standings using updated pool scores to feed into bracket parsing
+    const merged={...sc,...ap};
+    const standings={};["E","F","G","H"].forEach(k=>{standings[k]=calcSt(k,merged)});
+    logs.push("Bracket:");
+    try{
+      const brows=await fetchBracket();
+      if(brows){logs.push("  "+brows.length+" rows");const bp=parseBracket(brows,standings,logs);Object.assign(ap,bp);tot+=Object.keys(bp).length}
+      else{logs.push("  fetch failed")}
+    }catch(e){logs.push("  ERR: "+e.message)}
     setDl(logs);if(tot>0){s({...sc,...ap});setFs("success");setFm("✓ "+tot+" games synced")}else{setFs("error");setFm("No scores found — check debug")}setTimeout(()=>setFs("idle"),5000)}
   useEffect(()=>{doF()},[]);
 
