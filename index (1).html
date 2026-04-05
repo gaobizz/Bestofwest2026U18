@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BOTW Tracker">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f59e0b">
+<title>Best of the West 2026 — U18 Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;800&display=swap" rel="stylesheet">
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a0f;transition:background 0.3s}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+select{-webkit-appearance:none;appearance:none}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useCallback,useMemo}=React;
+const SID="1wQSna0lqluHB347sI-xiXGh_f00dlC96B53PdUEddcU";
+const GIDS={E:"666511180",F:"1856816085",G:"1624359914",H:"1260938099"};
+const POOLS={
+E:{name:"Pool E",teams:[{id:"E1",name:"Central Alberta Kings",city:"Red Deer"},{id:"E2",name:"Fraser Valley VC",city:"Langley"},{id:"E3",name:"Junior Bisons VC",city:"Winnipeg"},{id:"E4",name:"Lethbridge VC",city:"Lethbridge"}],games:[{id:"e1",time:"Fri 2:45",court:"East",home:"E1",away:"E3"},{id:"e2",time:"Fri 4:00",court:"West",home:"E2",away:"E4"},{id:"e3",time:"Sat 8:30",court:"East",home:"E1",away:"E4"},{id:"e4",time:"Sat 9:45",court:"East",home:"E2",away:"E3"},{id:"e5",time:"Sat 12:15",court:"Center",home:"E1",away:"E2"},{id:"e6",time:"Sat 12:15",court:"Stanley",home:"E3",away:"E4"}]},
+F:{name:"Pool F",teams:[{id:"F1",name:"Winman VC",city:"Winnipeg"},{id:"F2",name:"Northern Alberta VC",city:"Edmonton"},{id:"F3",name:"Element VC",city:"Delta"},{id:"F4",name:"Canada West VC",city:"Calgary"}],games:[{id:"f1",time:"Fri 2:45",court:"Center",home:"F1",away:"F3"},{id:"f2",time:"Fri 5:15",court:"Stanley",home:"F2",away:"F4"},{id:"f3",time:"Sat 8:30",court:"Center",home:"F2",away:"F3"},{id:"f4",time:"Sat 8:30",court:"Stanley",home:"F1",away:"F4"},{id:"f5",time:"Sat 12:15",court:"West",home:"F3",away:"F4"},{id:"f6",time:"Sat 1:30",court:"East",home:"F1",away:"F2"}]},
+G:{name:"Pool G",teams:[{id:"G1",name:"Apex VC",city:"Vancouver"},{id:"G2",name:"Jr Dinos VC",city:"Calgary"},{id:"G3",name:"Summit VC",city:"Regina"},{id:"G4",name:"Brandon VC",city:"Brandon"}],games:[{id:"g1",time:"Fri 4:00",court:"Stanley 1",home:"G1",away:"G3"},{id:"g2",time:"Fri 5:15",court:"Stanley 2",home:"G2",away:"G4"},{id:"g3",time:"Sat 8:30",court:"West",home:"G1",away:"G4"},{id:"g4",time:"Sat 9:45",court:"Center",home:"G2",away:"G3"},{id:"g5",time:"Sat 12:15",court:"Stanley 2",home:"G3",away:"G4"},{id:"g6",time:"Sat 1:30",court:"Center",home:"G1",away:"G2"}]},
+H:{name:"Pool H",teams:[{id:"H1",name:"Junior Cascades VC",city:"Abbotsford"},{id:"H2",name:"Dinos VC",city:"Calgary"},{id:"H3",name:"Huskie VC",city:"Saskatoon"},{id:"H4",name:"204 VC",city:"Winnipeg"}],games:[{id:"h1",time:"Fri 4:00",court:"Center",home:"H1",away:"H3"},{id:"h2",time:"Fri 5:15",court:"East",home:"H2",away:"H4"},{id:"h3",time:"Sat 8:30",court:"Stanley 2",home:"H1",away:"H4"},{id:"h4",time:"Sat 9:45",court:"West",home:"H2",away:"H3"},{id:"h5",time:"Sat 1:30",court:"West",home:"H1",away:"H2"},{id:"h6",time:"Sat 1:30",court:"Stanley 1",home:"H3",away:"H4"}]}};
+const AT={};Object.values(POOLS).forEach(p=>p.teams.forEach(t=>{AT[t.id]=t}));
+const ALL_TEAM_IDS=Object.keys(AT);
+const T1Q=[{id:"z1",label:"Z1",time:"Sat 6:30",court:"East",seeds:["E1","F2"]},{id:"z2",label:"Z2",time:"Sat 6:30",court:"Center",seeds:["G2","H1"]},{id:"z3",label:"Z3",time:"Sat 6:30",court:"West",seeds:["G1","H2"]},{id:"z4",label:"Z4",time:"Sat 6:30",court:"Stanley",seeds:["F1","E2"]}];
+const T2Q=[{id:"y1",label:"Y1",time:"Sat 5:15",court:"East",seeds:["E3","F4"]},{id:"y2",label:"Y2",time:"Sat 5:15",court:"Center",seeds:["G4","H3"]},{id:"y3",label:"Y3",time:"Sat 5:15",court:"West",seeds:["G3","H4"]},{id:"y4",label:"Y4",time:"Sat 5:15",court:"Stanley",seeds:["F3","E4"]}];
+const ST1=[
+  {id:"z5",label:"Z5 Con Semi",time:"Sun 12:15",court:"East",homeFrom:{gid:"z1",r:"loser"},awayFrom:{gid:"z2",r:"loser"}},
+  {id:"z6",label:"Z6 Con Semi",time:"Sun 12:15",court:"Stanley",homeFrom:{gid:"z3",r:"loser"},awayFrom:{gid:"z4",r:"loser"}},
+  {id:"z7",label:"Z7 Semi",time:"Sun 12:15",court:"Center",homeFrom:{gid:"z1",r:"winner"},awayFrom:{gid:"z2",r:"winner"}},
+  {id:"z8",label:"Z8 Semi",time:"Sun 12:15",court:"West",homeFrom:{gid:"z3",r:"winner"},awayFrom:{gid:"z4",r:"winner"}},
+  {id:"z9",label:"Z9 5th",time:"Sun 5:15",court:"East",homeFrom:{gid:"z5",r:"winner"},awayFrom:{gid:"z6",r:"winner"}},
+  {id:"z10",label:"Z10 7th",time:"Sun 5:15",court:"Stanley",homeFrom:{gid:"z5",r:"loser"},awayFrom:{gid:"z6",r:"loser"}},
+  {id:"z11",label:"Z11 Bronze",time:"Sun 5:15",court:"West",homeFrom:{gid:"z7",r:"loser"},awayFrom:{gid:"z8",r:"loser"}},
+  {id:"z12",label:"Z12 GOLD",time:"Sun 5:15",court:"Center",homeFrom:{gid:"z7",r:"winner"},awayFrom:{gid:"z8",r:"winner"}}];
+const ST2=[
+  {id:"y5",label:"Y5 Con Semi",time:"Sun 9:45",court:"East",homeFrom:{gid:"y1",r:"loser"},awayFrom:{gid:"y2",r:"loser"}},
+  {id:"y6",label:"Y6 Con Semi",time:"Sun 9:45",court:"Stanley",homeFrom:{gid:"y3",r:"loser"},awayFrom:{gid:"y4",r:"loser"}},
+  {id:"y7",label:"Y7 Semi",time:"Sun 9:45",court:"West",homeFrom:{gid:"y1",r:"winner"},awayFrom:{gid:"y2",r:"winner"}},
+  {id:"y8",label:"Y8 Semi",time:"Sun 9:45",court:"Center",homeFrom:{gid:"y3",r:"winner"},awayFrom:{gid:"y4",r:"winner"}},
+  {id:"y9",label:"Y9 13th",time:"Sun 2:45",court:"East",homeFrom:{gid:"y5",r:"winner"},awayFrom:{gid:"y6",r:"winner"}},
+  {id:"y10",label:"Y10 15th",time:"Sun 2:45",court:"Stanley",homeFrom:{gid:"y5",r:"loser"},awayFrom:{gid:"y6",r:"loser"}},
+  {id:"y11",label:"Y11 11th",time:"Sun 2:45",court:"West",homeFrom:{gid:"y7",r:"loser"},awayFrom:{gid:"y8",r:"loser"}},
+  {id:"y12",label:"Y12 9th",time:"Sun 2:45",court:"Center",homeFrom:{gid:"y7",r:"winner"},awayFrom:{gid:"y8",r:"winner"}}];
+
+// --- FETCH & PARSE ---
+async function fetchPool(pk){const gid=GIDS[pk];const urls=[`https://docs.google.com/spreadsheets/d/${SID}/export?format=csv&gid=${gid}`,`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&gid=${gid}`];for(const url of urls){try{const r=await fetch(url,{redirect:"follow"});if(!r.ok)continue;const t=await r.text();if(t.length<30||t.includes("<!DOCTYPE"))continue;return{csv:t,rows:Papa.parse(t,{skipEmptyLines:false}).data}}catch(e){continue}}throw new Error("fetch failed")}
+
+// Team abbreviations used in the bracket sheet
+const TEAM_ABBREV={
+  "apex":"G1","apex vc":"G1",
+  "fvvc":"E2","fraser valley":"E2","fraser valley vc":"E2",
+  "winman":"F1","winman vc":"F1",
+  "navc":"F2","northern alberta":"F2","northern alberta vc":"F2",
+  "cakvc":"E1","central alberta kings":"E1","central alberta":"E1",
+  "brandon":"G4","brandon vc":"G4",
+  "dinos":"H2","dinos vc":"H2",
+  "bisons":"E3","junior bisons":"E3","jr bisons":"E3",
+  "element":"F3","element vc":"F3",
+  "summit":"G3","summit vc":"G3",
+  "huskie":"H3","huskie vc":"H3","huskies":"H3",
+  "jr dinos":"G2","jr. dinos":"G2","junior dinos":"G2",
+  "204":"H4","204 vc":"H4",
+  "canwest":"F4","canada west":"F4","canada west vc":"F4",
+  "leth":"E4","lethbridge":"E4","lethbridge vc":"E4",
+  "cascades":"H1","junior cascades":"H1","jr cascades":"H1"
+};
+
+async function fetchBracket(){
+  const gid="1471380517";
+  const urls=[`https://docs.google.com/spreadsheets/d/${SID}/export?format=csv&gid=${gid}`,`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&gid=${gid}`];
+  for(const url of urls){try{const r=await fetch(url,{redirect:"follow"});if(!r.ok)continue;const t=await r.text();if(t.length<30||t.includes("<!DOCTYPE"))continue;return Papa.parse(t,{skipEmptyLines:false}).data}catch(e){continue}}
+  return null;
+}
+
+// Bracket layout: teams in matchup column, winner name listed in NEXT column
+// above match count and set scores. We scan for volleyball set scores then
+// walk UP in the same column to find the winner's name.
+function parseBracket(rows,poolStandings,logs){
+  const parsed={};
+  if(!rows||!rows.length)return parsed;
+
+  // More lenient team name matcher — handles trailing noise like "FVVC (W)"
+  const matchTeam=cell=>{
+    let c=String(cell||"").toLowerCase().trim().replace(/[.,()\[\]]/g,"").replace(/\s+/g," ");
+    if(!c)return null;
+    if(TEAM_ABBREV[c])return TEAM_ABBREV[c];
+    // Try progressively shorter prefixes (strip trailing words)
+    const words=c.split(" ");
+    for(let n=words.length;n>=1;n--){
+      const key=words.slice(0,n).join(" ");
+      if(TEAM_ABBREV[key])return TEAM_ABBREV[key];
+    }
+    // Word-boundary match, longest keys first
+    const keys=Object.keys(TEAM_ABBREV).sort((a,b)=>b.length-a.length);
+    for(const k of keys){
+      if(k.length<4)continue;
+      const re=new RegExp("\\b"+k.replace(/\s+/g,"\\s+")+"\\b");
+      if(re.test(c))return TEAM_ABBREV[k];
+    }
+    return null;
+  };
+
+  // Volleyball set scores: "23-25, 25-18, 15-13" — must have at least one 15+
+  const parseScores=cell=>{
+    const s=String(cell||"").trim().replace(/[\u2013\u2014]/g,"-");
+    if(!/^\d{1,2}-\d{1,2}(\s*,\s*\d{1,2}-\d{1,2}){0,3}$/.test(s))return null;
+    const pairs=[];const re=/(\d{1,2})-(\d{1,2})/g;let m;
+    while((m=re.exec(s))!==null)pairs.push({a:parseInt(m[1]),b:parseInt(m[2])});
+    if(!pairs.length)return null;
+    const nums=pairs.flatMap(p=>[p.a,p.b]);
+    if(Math.max(...nums)<15)return null;
+    return pairs;
+  };
+
+  const qfSlotId=seed=>{
+    const pk=seed[0],sn=parseInt(seed[1]);
+    const st=poolStandings[pk];
+    if(!st||!st[sn-1])return null;
+    return st[sn-1].id;
+  };
+
+  // Collect every cell that looks like volleyball set scores
+  const scoreLocs=[];
+  for(let r=0;r<rows.length;r++){
+    const row=rows[r]||[];
+    for(let c=0;c<row.length;c++){
+      const p=parseScores(row[c]);
+      if(p)scoreLocs.push({r,c,pairs:p});
+    }
+  }
+  logs.push("  Found "+scoreLocs.length+" set-score cells");
+
+  const usedLocs=new Set();
+
+  // For a given matchup, find the score cell in the sheet.
+  // Strategy: winner name sits directly ABOVE the score cell in SAME column,
+  // 1-5 rows up. Also verify the loser's name appears in nearby area.
+  const findMatch=(homeId,awayId)=>{
+    if(!homeId||!awayId||homeId===awayId)return null;
+    const candidates=[];
+    for(const loc of scoreLocs){
+      const key=loc.r+":"+loc.c;
+      if(usedLocs.has(key))continue;
+      // Look for winner name directly above score cell, same column
+      let winnerId=null,winnerDr=0;
+      for(let dr=-1;dr>=-5&&!winnerId;dr--){
+        const id=matchTeam((rows[loc.r+dr]||[])[loc.c]);
+        if(id===homeId||id===awayId){winnerId=id;winnerDr=dr}
+      }
+      if(!winnerId)continue;
+      // Verify BOTH teams present in broader window around score cell
+      // Matchup column is usually 1 left of winner column
+      const otherTeam=winnerId===homeId?awayId:homeId;
+      let foundOther=false;
+      for(let dr=-6;dr<=2&&!foundOther;dr++){
+        for(let dc=-2;dc<=1&&!foundOther;dc++){
+          const id=matchTeam((rows[loc.r+dr]||[])[loc.c+dc]);
+          if(id===otherTeam)foundOther=true;
+        }
+      }
+      if(!foundOther)continue;
+      // Closer winner = better candidate (tighter bracket layout)
+      candidates.push({loc,key,winnerId,score:winnerDr});
+    }
+    if(!candidates.length)return null;
+    // Prefer candidate where winner is closest (smallest |dr|)
+    candidates.sort((a,b)=>Math.abs(a.score)-Math.abs(b.score));
+    const best=candidates[0];
+    usedLocs.add(best.key);
+    return{winnerId:best.winnerId,pairs:best.loc.pairs};
+  };
+
+  // Orient scores to home/away: determine which side won more sets,
+  // match that to the known winner, flip pairs accordingly
+  const buildSets=(homeId,awayId,winnerId,pairs)=>{
+    let fw=0,sw=0;
+    pairs.forEach(p=>{if(p.a>p.b)fw++;else if(p.b>p.a)sw++});
+    const firstSideWon=fw>sw;
+    if(winnerId===homeId){
+      return firstSideWon?pairs.map(p=>({home:p.a,away:p.b})):pairs.map(p=>({home:p.b,away:p.a}));
+    }else{
+      return firstSideWon?pairs.map(p=>({home:p.b,away:p.a})):pairs.map(p=>({home:p.a,away:p.b}));
+    }
+  };
+
+  // Walk the bracket chain to figure out who plays in later rounds
+  const resolveChain=(source,pending)=>{
+    if(!source)return null;
+    const{gid,r}=source;
+    const sets=pending[gid];
+    if(!sets||!sets.length)return null;
+    let hW=0,aW=0;
+    for(const s of sets){if(s.home>s.away)hW++;else if(s.away>s.home)aW++}
+    if(hW===0&&aW===0)return null;
+    const want=r==="winner"?(hW>aW?"home":"away"):(hW>aW?"away":"home");
+    const qf=[...T1Q,...T2Q].find(q=>q.id===gid);
+    if(qf)return want==="home"?qfSlotId(qf.seeds[0]):qfSlotId(qf.seeds[1]);
+    const later=[...ST1,...ST2].find(x=>x.id===gid);
+    if(later){
+      const hid=resolveChain(later.homeFrom,pending);
+      const aid=resolveChain(later.awayFrom,pending);
+      return want==="home"?hid:aid;
+    }
+    return null;
+  };
+
+  const assigned={};
+
+  // Pass 1: QFs (Z1-Z4, Y1-Y4)
+  for(const qf of[...T1Q,...T2Q]){
+    const homeId=qfSlotId(qf.seeds[0]),awayId=qfSlotId(qf.seeds[1]);
+    const r=findMatch(homeId,awayId);
+    if(r){
+      assigned[qf.id]=buildSets(homeId,awayId,r.winnerId,r.pairs);
+      logs.push("  "+qf.id.toUpperCase()+": "+homeId+" vs "+awayId+" W:"+r.winnerId+" ["+r.pairs.map(p=>p.a+"-"+p.b).join(",")+"]");
+    }else{
+      logs.push("  "+qf.id.toUpperCase()+": not found ("+(homeId||"?")+" vs "+(awayId||"?")+")");
+    }
+  }
+  // Pass 2: Semis / Con-Semis
+  for(const game of[...ST1.slice(0,4),...ST2.slice(0,4)]){
+    const homeId=resolveChain(game.homeFrom,assigned),awayId=resolveChain(game.awayFrom,assigned);
+    const r=findMatch(homeId,awayId);
+    if(r){
+      assigned[game.id]=buildSets(homeId,awayId,r.winnerId,r.pairs);
+      logs.push("  "+game.id.toUpperCase()+": "+homeId+" vs "+awayId+" W:"+r.winnerId+" ["+r.pairs.map(p=>p.a+"-"+p.b).join(",")+"]");
+    }
+  }
+  // Pass 3: Finals / placement games
+  for(const game of[...ST1.slice(4),...ST2.slice(4)]){
+    const homeId=resolveChain(game.homeFrom,assigned),awayId=resolveChain(game.awayFrom,assigned);
+    const r=findMatch(homeId,awayId);
+    if(r){
+      assigned[game.id]=buildSets(homeId,awayId,r.winnerId,r.pairs);
+      logs.push("  "+game.id.toUpperCase()+": "+homeId+" vs "+awayId+" W:"+r.winnerId+" ["+r.pairs.map(p=>p.a+"-"+p.b).join(",")+"]");
+    }
+  }
+
+  for(const[gid,sets]of Object.entries(assigned))parsed[gid]={sets};
+  return parsed;
+}
+
+function parseMatrix(pk,rows,logs){
+  const pool=POOLS[pk],parsed={};
+  const matchTeam=(cell,team)=>{const c=String(cell||"").toLowerCase().trim();if(!c)return false;return c.includes(team.id.toLowerCase())||c.includes(team.name.toLowerCase().replace(/\s+(vc|volleyball club)$/i,""))};
+  let hdr=-1,tCols={};
+  for(let r=0;r<Math.min(rows.length,10);r++){let f=0;const seen={};for(let c=0;c<(rows[r]||[]).length;c++){for(const t of pool.teams){if(!seen[t.id]&&matchTeam(rows[r][c],t)){tCols[t.id]=c;seen[t.id]=true;f++;break}}}if(f>=3){hdr=r;break}}
+  if(hdr<0){logs.push("  No header found");return parsed}
+  logs.push("  Header row "+hdr+", cols: "+JSON.stringify(tCols));
+  const ord=pool.teams.map(t=>({id:t.id,c:tCols[t.id]})).filter(t=>t.c!==undefined).sort((a,b)=>a.c-b.c);
+  const cRange={};for(let i=0;i<ord.length;i++){const s=ord[i].c;const e=i<ord.length-1?ord[i+1].c:s+5;cRange[ord[i].id]={s,e}}
+  const tRows={};for(let r=hdr+1;r<rows.length;r++){const row=rows[r]||[];for(const t of pool.teams){if(tRows[t.id]!==undefined)continue;for(let c=0;c<Math.min(3,row.length);c++){if(matchTeam(row[c],t)){tRows[t.id]=r;break}}}}
+  logs.push("  Row starts: "+JSON.stringify(tRows));
+  for(const game of pool.games){
+    const hr=tRows[game.home],ac=cRange[game.away];
+    if(hr===undefined||!ac)continue;
+    const sets=[];
+    for(let r=hr;r<Math.min(hr+3,rows.length);r++){
+      const row=rows[r]||[];const nums=[];
+      for(let c=ac.s;c<ac.e;c++){const v=String(row[c]||"").trim();if(/^\d{1,2}$/.test(v)){const n=parseInt(v);if(n>=0&&n<=50)nums.push(n)}}
+      if(nums.length>=2)sets.push({home:nums[0],away:nums[1]});
+    }
+    if(sets.length>0){parsed[game.id]={sets};logs.push("  "+game.home+" vs "+game.away+": "+sets.map(s=>s.home+"-"+s.away).join(", "))}
+  }
+  return parsed;
+}
+
+// --- STANDINGS ---
+function calcSt(pk,sc){const pool=POOLS[pk],st={};pool.teams.forEach(t=>{st[t.id]={id:t.id,name:t.name,w:0,l:0,sW:0,sL:0,pW:0,pL:0}});pool.games.forEach(g=>{const s=sc[g.id];if(!s?.sets?.length)return;let hW=0,aW=0;s.sets.forEach(set=>{const h=typeof set.home==="number"?set.home:0,a=typeof set.away==="number"?set.away:0;if(h>a)hW++;else if(a>h)aW++;if(st[g.home]){st[g.home].pW+=h;st[g.home].pL+=a}if(st[g.away]){st[g.away].pW+=a;st[g.away].pL+=h}});if(st[g.home]){st[g.home].sW+=hW;st[g.home].sL+=aW}if(st[g.away]){st[g.away].sW+=aW;st[g.away].sL+=hW}if(hW>aW){if(st[g.home])st[g.home].w++;if(st[g.away])st[g.away].l++}else if(aW>hW){if(st[g.away])st[g.away].w++;if(st[g.home])st[g.home].l++}});return Object.values(st).sort((a,b)=>{const aMP=a.w*2+a.l,bMP=b.w*2+b.l;if(bMP!==aMP)return bMP-aMP;const sr=a.sW*b.sL-b.sW*a.sL;if(sr!==0)return sr>0?-1:1;const pr=a.pW*b.pL-b.pW*a.pL;if(pr!==0)return pr>0?-1:1;return 0})}
+function pD(pk,sc){return POOLS[pk].games.every(g=>sc[g.id]?.sets?.length>0&&sc[g.id].sets.every(s=>typeof s.home==="number"&&typeof s.away==="number"))}
+function pC(pk,sc){return POOLS[pk].games.filter(g=>sc[g.id]?.sets?.length>0).length}
+
+// --- T1/T2 PROBABILITY ---
+function calcChances(pk,sc){
+  const pool=POOLS[pk];
+  const remaining=pool.games.filter(g=>!sc[g.id]?.sets?.length||!sc[g.id].sets.every(s=>typeof s.home==="number"&&typeof s.away==="number"));
+  if(remaining.length===0){const st=calcSt(pk,sc);const r={};st.forEach((t,i)=>{r[t.id]={t1:i<2?100:0,t2:i>=2?100:0,pos:i+1}});return r}
+  const n=remaining.length;const total=Math.pow(2,n);
+  const counts={};pool.teams.forEach(t=>{counts[t.id]={t1:0,t2:0}});
+  for(let mask=0;mask<total;mask++){
+    const simSc={...sc};
+    for(let i=0;i<n;i++){
+      const g=remaining[i];
+      if(mask&(1<<i))simSc[g.id]={sets:[{home:25,away:20},{home:25,away:20}]};
+      else simSc[g.id]={sets:[{home:20,away:25},{home:20,away:25}]};
+    }
+    const st=calcSt(pk,simSc);
+    st.forEach((t,i)=>{if(i<2)counts[t.id].t1++;else counts[t.id].t2++});
+  }
+  const r={};pool.teams.forEach(t=>{r[t.id]={t1:Math.round(counts[t.id].t1/total*100),t2:Math.round(counts[t.id].t2/total*100)}});
+  return r;
+}
+
+// --- THEMES ---
+const themes={
+  dark:{bg:"linear-gradient(170deg,#0a0a0f,#0f172a,#0a0a0f)",card:"#111827",cardHi:"#0f1b2d",border:"#1e293b",text:"#e2e8f0",textDim:"#94a3b8",textMuted:"#64748b",textDark:"#475569",accent:"#f59e0b",accentBg:"rgba(245,158,11,0.1)",green:"#4ade80",greenBg:"rgba(74,222,128,0.08)",red:"#f87171",redBg:"rgba(248,113,113,0.1)",headerBg:"linear-gradient(135deg,#f59e0b,#d97706)",headerText:"#000",headerDim:"rgba(0,0,0,0.5)",syncBg:"#0c1222",inputBg:"#1a1a2e",inputBorder:"#333",btnBg:"#1e293b",btnActive:"#334155",t1bar:"#4ade80",t2bar:"#f59e0b"},
+  light:{bg:"#f0f2f5",card:"#fff",cardHi:"#fffbeb",border:"#e2e5e9",text:"#1a1a2e",textDim:"#555",textMuted:"#888",textDark:"#aaa",accent:"#d97706",accentBg:"rgba(217,119,6,0.08)",green:"#16a34a",greenBg:"rgba(22,163,74,0.08)",red:"#dc2626",redBg:"rgba(220,38,38,0.08)",headerBg:"linear-gradient(135deg,#f59e0b,#d97706)",headerText:"#000",headerDim:"rgba(0,0,0,0.5)",syncBg:"#e8eaed",inputBg:"#f5f5f5",inputBorder:"#ccc",btnBg:"#e2e5e9",btnActive:"#d0d3d8",t1bar:"#16a34a",t2bar:"#d97706"}
+};
+
+const SK="apex-v13";
+const APP_VERSION="2026.04.05.4";
+
+// Cache-busting reload - works on iOS/Android homescreen apps
+function hardReload(){
+  // Navigate to a unique URL to bypass all caches
+  const base=location.pathname;
+  location.replace(base+"?_r="+Date.now());
+}
+
+// Clean cache-buster param from URL on load (keeps URL clean)
+if(location.search.includes("_r=")){
+  history.replaceState(null,"",location.pathname);
+}
+
+// Auto-reload when returning to homescreen app after 5+ minutes
+let lastActive=Date.now();
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible"){
+    const elapsed=Date.now()-lastActive;
+    if(elapsed>5*60*1000){hardReload()}
+    else{lastActive=Date.now()}
+  }else{lastActive=Date.now()}
+});
+window.addEventListener("focus",()=>{
+  const elapsed=Date.now()-lastActive;
+  if(elapsed>5*60*1000){hardReload()}
+  lastActive=Date.now();
+});
+
+// Register service worker for network-first caching (if supported)
+if("serviceWorker" in navigator){
+  // Create a tiny network-first SW via data URI
+  const swCode="self.addEventListener('install',function(e){self.skipWaiting()});self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());e.waitUntil(caches.keys().then(function(k){return Promise.all(k.map(function(c){return caches.delete(c)}))}))});self.addEventListener('fetch',function(e){e.respondWith(fetch(e.request).then(function(r){return r}).catch(function(){return caches.match(e.request)}))})";
+  // Try to register - if it fails (blob not allowed), that's ok, the URL busting still works
+  try{
+    const b=new Blob([swCode],{type:"application/javascript"});
+    navigator.serviceWorker.register(URL.createObjectURL(b)).catch(()=>{});
+  }catch(e){}
+}
+function ldS(){try{return JSON.parse(localStorage.getItem(SK))?.s||{}}catch(e){return{}}}
+function svS(s){try{localStorage.setItem(SK,JSON.stringify({s,t:new Date().toLocaleTimeString()}))}catch(e){}}
+function ldP(){try{return JSON.parse(localStorage.getItem(SK+"_p"))||{}}catch(e){return{}}}
+function svP(p){try{localStorage.setItem(SK+"_p",JSON.stringify(p))}catch(e){}}
+
+function SI({sets,onChange,th}){
+  const add=()=>onChange([...sets,{home:"",away:""}]),rm=()=>onChange(sets.slice(0,-1));
+  const up=(i,side,val)=>{const v=val===""?"":Math.max(0,parseInt(val)||0);const n=[...sets];n[i]={...n[i],[side]:v};onChange(n)};
+  const iSt={width:42,padding:"5px 2px",textAlign:"center",background:th.inputBg,border:"1px solid "+th.inputBorder,borderRadius:5,color:th.text,fontSize:"inherit",fontFamily:"monospace",outline:"none"};
+  return(<div style={{display:"flex",flexDirection:"column",gap:4}}>{sets.map((s,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:"0.75em",color:th.textMuted,width:22,fontFamily:"monospace"}}>S{i+1}</span><input type="number" min="0" value={s.home===""?"":s.home} onChange={e=>up(i,"home",e.target.value)} style={iSt} placeholder="0"/><span style={{color:th.textDark,fontSize:"0.75em"}}>–</span><input type="number" min="0" value={s.away===""?"":s.away} onChange={e=>up(i,"away",e.target.value)} style={iSt} placeholder="0"/></div>))}<div style={{display:"flex",gap:4}}><button onClick={add} style={{padding:"2px 8px",fontSize:"0.75em",background:th.greenBg,color:th.green,border:"1px solid "+th.inputBorder,borderRadius:4,cursor:"pointer",fontFamily:"monospace"}}>+ Set</button>{sets.length>0&&<button onClick={rm} style={{padding:"2px 8px",fontSize:"0.75em",background:th.redBg,color:th.red,border:"1px solid "+th.inputBorder,borderRadius:4,cursor:"pointer",fontFamily:"monospace"}}>−</button>}</div></div>);
+}
+
+function App(){
+  const prefs=ldP();
+  const[sc,setSc]=useState(ldS);
+  const[tab,setTab]=useState("home");
+  const[pt,setPt]=useState("G");
+  const[fs,setFs]=useState("idle");
+  const[fm,setFm]=useState("");
+  const[dl,setDl]=useState([]);
+  const[sd,setSd]=useState(false);
+  const sysMode=typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme:light)").matches?"light":"dark";
+  const[mode,setMode]=useState(prefs.mode||sysMode);
+  const[fsize,setFsize]=useState(prefs.fsize||14);
+  const[homeTeam,setHomeTeam]=useState(prefs.homeTeam||"G1");
+  const[showSettings,setShowSettings]=useState(false);
+  const[showTeamPicker,setShowTeamPicker]=useState(false);
+  const[tier1Open,setTier1Open]=useState(true);
+  const[tier2Open,setTier2Open]=useState(true);
+
+  const th=themes[mode];
+  const homePk=homeTeam[0];
+  const homeT=AT[homeTeam];
+
+  useEffect(()=>{svP({mode,fsize,homeTeam});document.body.style.background=mode==="dark"?"#0a0a0f":"#f0f2f5"},[mode,fsize,homeTeam]);
+
+  const toggleSettings=()=>{setShowSettings(!showSettings);setShowTeamPicker(false)};
+  const toggleTeamPicker=()=>{setShowTeamPicker(!showTeamPicker);setShowSettings(false)};
+
+  const s=n=>{setSc(n);svS(n)};
+
+  async function doF(){setFs("loading");setFm("Syncing...");const logs=[],ap={};let tot=0;
+    for(const pk of["E","F","G","H"]){logs.push("Pool "+pk+":");try{const{rows}=await fetchPool(pk);logs.push("  "+rows.length+" rows");const p=parseMatrix(pk,rows,logs);Object.assign(ap,p);tot+=Object.keys(p).length}catch(e){logs.push("  ERR: "+e.message)}}
+    // Compute standings using updated pool scores to feed into bracket parsing
+    const merged={...sc,...ap};
+    const standings={};["E","F","G","H"].forEach(k=>{standings[k]=calcSt(k,merged)});
+    logs.push("Bracket:");
+    try{
+      const brows=await fetchBracket();
+      if(brows){logs.push("  "+brows.length+" rows");const bp=parseBracket(brows,standings,logs);Object.assign(ap,bp);tot+=Object.keys(bp).length}
+      else{logs.push("  fetch failed")}
+    }catch(e){logs.push("  ERR: "+e.message)}
+    setDl(logs);if(tot>0){
+      // Clear all bracket (z/y) scores from existing state; fresh sync replaces them
+      const cleaned={};Object.keys(sc).forEach(k=>{if(!/^[zy]/.test(k))cleaned[k]=sc[k]});
+      s({...cleaned,...ap});setFs("success");setFm("✓ "+tot+" games synced")
+    }else{setFs("error");setFm("No scores found — check debug")}setTimeout(()=>setFs("idle"),5000)}
+  useEffect(()=>{doF()},[]);
+
+  const up=(gid,sets)=>{const n={...sc,[gid]:{sets}};s(n)};
+  const rst=()=>{if(!confirm("Reset ALL?"))return;s({})};
+
+  const aS=useMemo(()=>{const r={};["E","F","G","H"].forEach(k=>{r[k]=calcSt(k,sc)});return r},[sc]);
+  const chances=useMemo(()=>{const r={};["E","F","G","H"].forEach(k=>{Object.assign(r,calcChances(k,sc))});return r},[sc]);
+
+  const homeRank=aS[homePk]?.findIndex(x=>x.id===homeTeam)+1;
+  const homeRec=aS[homePk]?.find(x=>x.id===homeTeam);
+  const homeDone=pD(homePk,sc);
+  const ordinal=n=>n===1?"1st":n===2?"2nd":n===3?"3rd":n+"th";
+  const resQF=sid=>{const pk=sid[0],sn=parseInt(sid[1]);if(!pD(pk,sc))return{name:ordinal(sn)+" in "+pk,ok:false};const t=aS[pk][sn-1]?AT[aS[pk][sn-1].id]:null;return t?{...t,ok:true}:{name:"TBD",ok:false}};
+
+  // --- BRACKET PROPAGATION ---
+  // Get winner/loser of any knockout game by its id
+  function getGameResult(gid){
+    const g=sc[gid];
+    if(!g?.sets?.length)return null;
+    let hW=0,aW=0;
+    for(const set of g.sets){const h=typeof set.home==="number"?set.home:0,a=typeof set.away==="number"?set.away:0;if(h>a)hW++;else if(a>h)aW++}
+    if(hW===0&&aW===0)return null;
+    return{winner:hW>aW?"home":"away",loser:hW>aW?"away":"home"};
+  }
+
+  // Resolve who plays in a QF slot (from pool standings)
+  function resolveQFSlot(qf,side){
+    const seed=qf.seeds[side==="home"?0:1];
+    return resQF(seed);
+  }
+
+  // Resolve who plays in any bracket game (recursively follows the chain)
+  function resolveBracketTeam(source){
+    if(!source)return{name:"TBD",ok:false};
+    const{gid,r}=source;
+    // Is this a QF game? Find the QF
+    const qf=[...T1Q,...T2Q].find(q=>q.id===gid);
+    if(qf){
+      // Get both teams in the QF
+      const tHome=resolveQFSlot(qf,"home");
+      const tAway=resolveQFSlot(qf,"away");
+      // Check if QF has a result
+      const result=getGameResult(gid);
+      if(!result){
+        const srcLabel=qf.label;
+        return{name:(r==="winner"?"W ":"L ")+srcLabel,ok:false};
+      }
+      // Return winner or loser
+      return r==="winner"?(result.winner==="home"?tHome:tAway):(result.winner==="home"?tAway:tHome);
+    }
+    // It's a later round game - find it in ST1/ST2
+    const later=[...ST1,...ST2].find(g=>g.id===gid);
+    if(later){
+      const tHome=resolveBracketTeam(later.homeFrom);
+      const tAway=resolveBracketTeam(later.awayFrom);
+      const result=getGameResult(gid);
+      if(!result){
+        const srcLabel=later.label.replace(/ Con Semi| Semi/,"").trim();
+        return{name:(r==="winner"?"W ":"L ")+srcLabel,ok:false};
+      }
+      return r==="winner"?(result.winner==="home"?tHome:tAway):(result.winner==="home"?tAway:tHome);
+    }
+    return{name:"TBD",ok:false};
+  }
+
+  // Components
+  const WINNER_STYLE={fontSize:"0.58em",fontWeight:800,color:th.green,marginTop:3,letterSpacing:1.5,fontFamily:"monospace"};
+  const GC=({game})=>{
+    const h=AT[game.home],a=AT[game.away],has=sc[game.id]?.sets?.length>0;
+    const isHome=game.home===homeTeam||game.away===homeTeam;
+    const r=getGameResult(game.id);
+    return(<div style={{background:has?th.cardHi:th.card,border:"1px solid "+(isHome?th.accent+"44":th.border),borderRadius:8,padding:12,marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+        <span style={{fontSize:"0.75em",color:isHome?th.accent:th.textMuted,fontFamily:"monospace",fontWeight:700}}>{game.home} vs {game.away}</span>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>{has&&<span style={{fontSize:"0.6em",color:th.green}}>✓</span>}<span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{game.time} · {game.court}</span></div>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:"0.85em",fontWeight:game.home===homeTeam?800:500,color:game.home===homeTeam?th.accent:th.text}}>{h?.name}</div>
+          {r?.winner==="home"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+        <SI sets={sc[game.id]?.sets||[]} onChange={x=>up(game.id,x)} th={th}/>
+        <div style={{flex:1,textAlign:"right",minWidth:0}}>
+          <div style={{fontSize:"0.85em",fontWeight:game.away===homeTeam?800:500,color:game.away===homeTeam?th.accent:th.text}}>{a?.name}</div>
+          {r?.winner==="away"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+      </div>
+    </div>)
+  };
+
+  const STbl=({pk})=>{const st=aS[pk],dn=pD(pk,sc),ct=pC(pk,sc);
+    const thS={padding:"6px 6px",fontSize:"0.6em",color:th.textDark,fontFamily:"monospace",fontWeight:500,textAlign:"center",borderBottom:"1px solid "+th.border,whiteSpace:"nowrap"};
+    const thG={padding:"6px 6px 2px",fontSize:"0.68em",color:th.textDim,fontFamily:"monospace",fontWeight:700,textAlign:"center",whiteSpace:"nowrap",letterSpacing:0.5};
+    const tdS={padding:"10px 6px",fontSize:"0.82em",fontFamily:"monospace",fontWeight:700,textAlign:"center",whiteSpace:"nowrap"};
+    return(<div style={{background:th.card,borderRadius:8,border:"1px solid "+th.border,overflow:"hidden",marginBottom:12}}>
+      <div style={{padding:"8px 10px",fontSize:"0.85em",fontWeight:700,color:th.textDim,background:th.syncBg,fontFamily:"monospace",display:"flex",justifyContent:"space-between"}}><span>{POOLS[pk].name}</span><span style={{color:dn?th.green:th.textMuted}}>{dn?"✓":ct+"/6"}</span></div>
+      <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+        <table style={{borderCollapse:"collapse",width:"100%",minWidth:520}}>
+          <thead>
+            <tr>
+              <th colSpan={2} style={{...thG,borderBottom:"1px solid "+th.border}}></th>
+              <th colSpan={4} style={{...thG,borderLeft:"1px solid "+th.border,color:th.accent}}>Matches</th>
+              <th colSpan={3} style={{...thG,borderLeft:"1px solid "+th.border,color:th.green}}>Sets</th>
+              <th colSpan={3} style={{...thG,borderLeft:"1px solid "+th.border,color:th.textDim}}>Points</th>
+            </tr>
+            <tr>
+              <th style={{...thS,width:24}}>#</th>
+              <th style={{...thS,textAlign:"left",paddingLeft:10,minWidth:90}}>Team</th>
+              <th style={{...thS,borderLeft:"1px solid "+th.border}}>Total</th>
+              <th style={thS}>Won</th>
+              <th style={thS}>Lost</th>
+              <th style={thS}>Pts</th>
+              <th style={{...thS,borderLeft:"1px solid "+th.border}}>Won</th>
+              <th style={thS}>Lost</th>
+              <th style={thS}>Set<br/>Ratio</th>
+              <th style={{...thS,borderLeft:"1px solid "+th.border}}>Won</th>
+              <th style={thS}>Lost</th>
+              <th style={thS}>Point Ratio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {st.map((t,i)=>{
+              const total=t.w+t.l;
+              const matchPts=t.w*2+t.l*1;
+              const setRatio=t.sL>0?(t.sW/t.sL).toFixed(3):t.sW>0?"∞":"0.000";
+              const ptRatio=t.pL>0?(t.pW/t.pL).toFixed(4):t.pW>0?"∞":"0.0000";
+              const isMe=t.id===homeTeam;
+              const rowBg=isMe?th.accentBg:i<2?th.greenBg:"transparent";
+              return(<tr key={t.id} style={{background:rowBg,borderBottom:i<3?"1px solid "+th.border:"none"}}>
+                <td style={{...tdS,fontSize:"0.95em",color:i===0?th.accent:i===1?th.textDim:th.textDark,fontWeight:800}}>{i+1}</td>
+                <td style={{padding:"10px 6px 10px 10px",textAlign:"left",whiteSpace:"nowrap"}}>
+                  <div style={{fontSize:"0.82em",fontWeight:isMe?800:600,color:isMe?th.accent:th.text}}>{t.name}</div>
+                  <div style={{fontSize:"0.6em",color:th.textDark,fontFamily:"monospace"}}>{t.id}{dn?(i<2?" → T1":" → T2"):""}</div>
+                </td>
+                <td style={{...tdS,borderLeft:"1px solid "+th.border,color:th.text}}>{total}</td>
+                <td style={{...tdS,color:th.green}}>{t.w}</td>
+                <td style={{...tdS,color:t.l>0?th.red:th.textDark}}>{t.l}</td>
+                <td style={{...tdS,color:th.accent}}>{matchPts}</td>
+                <td style={{...tdS,borderLeft:"1px solid "+th.border,color:th.green}}>{t.sW}</td>
+                <td style={{...tdS,color:t.sL>0?th.red:th.textDark}}>{t.sL}</td>
+                <td style={{...tdS,fontSize:"0.75em",color:th.text}}>{setRatio}</td>
+                <td style={{...tdS,borderLeft:"1px solid "+th.border,fontSize:"0.78em",color:th.green}}>{t.pW}</td>
+                <td style={{...tdS,fontSize:"0.78em",color:t.pL>0?th.red:th.textDark}}>{t.pL}</td>
+                <td style={{...tdS,fontSize:"0.72em",color:th.text}}>{ptRatio}</td>
+              </tr>)
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div style={{padding:"8px 10px",fontSize:"0.62em",color:th.textDark,fontFamily:"monospace",background:th.syncBg,lineHeight:1.5}}>Tiebreakers: 1) Match Pts → 2) Set Ratio → 3) Point Ratio · Swipe table to scroll</div>
+    </div>)};
+
+  const QFC=({qf})=>{
+    const tA=resQF(qf.seeds[0]),tB=resQF(qf.seeds[1]);
+    const ap=tA.id===homeTeam||tB.id===homeTeam;
+    const r=getGameResult(qf.id);
+    return(<div style={{background:ap?th.accentBg:th.card,border:"1px solid "+(ap?th.accent+"88":th.border),borderRadius:8,padding:10,marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontSize:"0.75em",color:ap?th.accent:th.textMuted,fontFamily:"monospace",fontWeight:700}}>{qf.label}</span>
+        <span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{qf.time} · {qf.court}</span>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:"0.85em",fontWeight:tA.id===homeTeam?800:500,color:tA.id===homeTeam?th.accent:tA.ok?th.text:th.textMuted}}>{tA.name}</div>
+          {r?.winner==="home"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+        <SI sets={sc[qf.id]?.sets||[]} onChange={x=>up(qf.id,x)} th={th}/>
+        <div style={{flex:1,textAlign:"right"}}>
+          <div style={{fontSize:"0.85em",fontWeight:tB.id===homeTeam?800:500,color:tB.id===homeTeam?th.accent:tB.ok?th.text:th.textMuted}}>{tB.name}</div>
+          {r?.winner==="away"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+      </div>
+    </div>)
+  };
+
+  const KO=({g})=>{
+    const tA=resolveBracketTeam(g.homeFrom);
+    const tB=resolveBracketTeam(g.awayFrom);
+    const ap=(tA.id&&tA.id===homeTeam)||(tB.id&&tB.id===homeTeam);
+    const isGold=g.label.includes("GOLD");
+    const r=getGameResult(g.id);
+    return(<div style={{background:isGold||ap?th.accentBg:th.card,border:"1px solid "+(isGold||ap?th.accent+"88":th.border),borderRadius:8,padding:10,marginBottom:6}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontSize:"0.75em",color:isGold?th.accent:th.textDim,fontFamily:"monospace",fontWeight:700}}>{g.label}</span>
+        <span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{g.time} · {g.court}</span>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:"0.85em",fontWeight:tA.id===homeTeam?800:500,color:tA.id===homeTeam?th.accent:tA.ok?th.text:th.textMuted}}>{tA.name}</div>
+          {r?.winner==="home"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+        <SI sets={sc[g.id]?.sets||[]} onChange={x=>up(g.id,x)} th={th}/>
+        <div style={{flex:1,textAlign:"right"}}>
+          <div style={{fontSize:"0.85em",fontWeight:tB.id===homeTeam?800:500,color:tB.id===homeTeam?th.accent:tB.ok?th.text:th.textMuted}}>{tB.name}</div>
+          {r?.winner==="away"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+      </div>
+    </div>);
+  };
+
+  const tot=Object.keys(sc).filter(k=>sc[k]?.sets?.length>0).length;
+
+  return(<div style={{minHeight:"100vh",background:th.bg,color:th.text,fontFamily:"'Segoe UI',system-ui,sans-serif",fontSize:fsize,maxWidth:480,margin:"0 auto"}}>
+    {/* Header */}
+    <div style={{background:th.headerBg,padding:"16px 16px 12px",position:"relative"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",position:"relative",zIndex:2}}>
+        <div>
+          <div style={{fontSize:"0.65em",letterSpacing:3,color:"rgba(0,0,0,0.4)",fontWeight:700,fontFamily:"monospace"}}>BEST OF THE WEST 2026</div>
+          <div style={{fontSize:"1.5em",fontWeight:800,color:th.headerText,letterSpacing:-1,fontFamily:"'Space Grotesk',sans-serif"}}>U18 TOURNAMENT</div>
+        </div>
+        <div onClick={toggleSettings} style={{background:"rgba(0,0,0,0.2)",border:"2px solid rgba(0,0,0,0.15)",borderRadius:8,width:44,height:44,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",WebkitTapHighlightColor:"rgba(0,0,0,0.1)"}}><span style={{fontSize:20,lineHeight:1,pointerEvents:"none",color:th.headerText}}>&#9881;</span></div>
+      </div>
+      {/* Team selector */}
+      <div onClick={toggleTeamPicker} style={{marginTop:8,background:"rgba(0,0,0,0.2)",border:"1px solid rgba(0,0,0,0.15)",borderRadius:6,padding:"8px 12px",cursor:"pointer",color:th.headerText,fontWeight:700,fontSize:"0.85em",display:"inline-flex",alignItems:"center",gap:6,minHeight:40,position:"relative",zIndex:2,WebkitTapHighlightColor:"rgba(0,0,0,0.1)"}}>
+        <span style={{pointerEvents:"none"}}>🏐 {homeT?.name||"Select Team"} ▼</span>
+      </div>
+      <div style={{fontSize:"0.8em",color:th.headerDim,fontWeight:600,marginTop:4}}>
+        {homeRec?homeRec.w+"-"+homeRec.l:"0-0"} · Pool {homePk} #{homeRank} {homeDone?(homeRank<=2?"→ Tier 1 🏆":"→ Tier 2"):""}
+        {chances[homeTeam]&&!homeDone?` · Tier 1: ${chances[homeTeam].t1}%`:""}
+      </div>
+      {/* Next Game */}
+      {(()=>{
+        // Find next unplayed game for home team
+        const poolGames=POOLS[homePk].games.filter(g=>g.home===homeTeam||g.away===homeTeam);
+        const allKO=[...T1Q,...T2Q,...ST1,...ST2];
+        // Pool games first
+        let nextGame=null;
+        for(const g of poolGames){
+          if(!sc[g.id]?.sets?.length||!sc[g.id].sets.every(s=>typeof s.home==="number"&&typeof s.away==="number")){
+            const opp=g.home===homeTeam?AT[g.away]:AT[g.home];
+            nextGame={time:g.time,court:g.court,vs:opp?.name||"TBD",label:g.home+" vs "+g.away,type:"Pool"};break;
+          }
+        }
+        // If pool done, check QF
+        if(!nextGame&&homeDone){
+          const tier=homeRank<=2?"T1":"T2";
+          const qfs=tier==="T1"?T1Q:T2Q;
+          for(const qf of qfs){
+            const tA=resQF(qf.seeds[0]),tB=resQF(qf.seeds[1]);
+            if(tA.id===homeTeam||tB.id===homeTeam){
+              if(!sc[qf.id]?.sets?.length){
+                const opp=tA.id===homeTeam?tB:tA;
+                nextGame={time:qf.time,court:qf.court,vs:opp.name||"TBD",label:qf.label+" QF",type:"Quarterfinal"};
+              }
+              break;
+            }
+          }
+        }
+        // Check later rounds
+        if(!nextGame&&homeDone){
+          const tier=homeRank<=2?"T1":"T2";
+          const rounds=tier==="T1"?ST1:ST2;
+          for(const g of rounds){
+            const tA=resolveBracketTeam(g.homeFrom),tB=resolveBracketTeam(g.awayFrom);
+            if(tA.id===homeTeam||tB.id===homeTeam){
+              if(!sc[g.id]?.sets?.length){
+                const opp=tA.id===homeTeam?tB:tA;
+                nextGame={time:g.time,court:g.court,vs:opp.name||opp.name,label:g.label,type:"Playoff"};
+              }
+              break;
+            }
+          }
+        }
+        if(!nextGame)return null;
+        return(<div style={{marginTop:8,background:"rgba(0,0,0,0.25)",borderRadius:8,padding:"10px 12px",position:"relative",zIndex:2}}>
+          <div style={{fontSize:"0.65em",letterSpacing:2,color:"rgba(255,255,255,0.4)",fontWeight:700,fontFamily:"monospace",marginBottom:4}}>NEXT GAME — {nextGame.type.toUpperCase()}</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:"1em",fontWeight:800,color:"#fff"}}>{homeT?.name} vs {nextGame.vs}</div>
+              <div style={{fontSize:"0.78em",color:"rgba(255,255,255,0.6)",marginTop:2}}>{nextGame.label}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:"0.9em",fontWeight:800,color:"#fff"}}>{nextGame.time}</div>
+              <div style={{fontSize:"0.78em",color:"rgba(255,255,255,0.6)"}}>{nextGame.court}</div>
+            </div>
+          </div>
+        </div>);
+      })()}
+    </div>
+
+    {/* Team picker overlay dropdown */}
+    {showTeamPicker&&<div onClick={()=>setShowTeamPicker(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:100,padding:"100px 16px 16px"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:th.card,border:"1px solid "+th.border,borderRadius:12,padding:12,width:"100%",maxWidth:420,maxHeight:"75vh",overflowY:"auto",boxShadow:"0 10px 40px rgba(0,0,0,0.5)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,position:"sticky",top:-12,background:th.card,padding:"8px 0",margin:"-12px 0 8px",borderBottom:"1px solid "+th.border}}>
+          <span style={{fontSize:"0.78em",color:th.text,fontFamily:"monospace",fontWeight:700}}>SELECT TEAM</span>
+          <button onClick={()=>setShowTeamPicker(false)} style={{background:"none",border:"none",color:th.textMuted,fontSize:"1.3em",cursor:"pointer",padding:"4px 10px",lineHeight:1}}>✕</button>
+        </div>
+        {["E","F","G","H"].map(pk=>(<div key={pk} style={{marginBottom:10}}>
+          <div style={{fontSize:"0.72em",color:th.textDim,fontFamily:"monospace",marginBottom:4,fontWeight:700}}>Pool {pk}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+            {POOLS[pk].teams.map(t=>(<button key={t.id} onClick={()=>{setHomeTeam(t.id);setPt(pk);setShowTeamPicker(false)}} style={{padding:"10px 8px",borderRadius:6,border:t.id===homeTeam?"2px solid "+th.accent:"1px solid "+th.border,background:t.id===homeTeam?th.accentBg:th.syncBg,color:t.id===homeTeam?th.accent:th.text,fontSize:"0.8em",fontWeight:t.id===homeTeam?700:500,cursor:"pointer",textAlign:"left"}}>{t.id} {t.name}</button>))}
+          </div>
+        </div>))}
+      </div>
+    </div>}
+
+    {/* Settings panel */}
+    {showSettings&&<div onClick={()=>setShowSettings(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.6)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"100px 16px 16px"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:th.card,border:"1px solid "+th.border,borderRadius:12,padding:16,width:"100%",maxWidth:420,boxShadow:"0 10px 40px rgba(0,0,0,0.5)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:10,borderBottom:"1px solid "+th.border}}>
+          <span style={{fontSize:"0.85em",color:th.text,fontFamily:"monospace",fontWeight:700}}>SETTINGS</span>
+          <button onClick={()=>setShowSettings(false)} style={{background:"none",border:"none",color:th.textMuted,fontSize:"1.3em",cursor:"pointer",padding:"4px 10px",lineHeight:1}}>✕</button>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <span style={{fontSize:"0.9em",color:th.text}}>Theme</span>
+          <div style={{display:"flex",gap:4}}>
+            <button onClick={()=>setMode("dark")} style={{padding:"6px 14px",borderRadius:4,border:"1px solid "+th.border,background:mode==="dark"?th.accent:"transparent",color:mode==="dark"?"#000":th.textMuted,fontSize:"0.82em",cursor:"pointer",fontWeight:700}}>Dark</button>
+            <button onClick={()=>setMode("light")} style={{padding:"6px 14px",borderRadius:4,border:"1px solid "+th.border,background:mode==="light"?th.accent:"transparent",color:mode==="light"?"#000":th.textMuted,fontSize:"0.82em",cursor:"pointer",fontWeight:700}}>Light</button>
+          </div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:"0.9em",color:th.text}}>Font Size</span>
+          <div style={{display:"flex",gap:4}}>
+            {[{l:"S",v:12},{l:"M",v:14},{l:"L",v:16},{l:"XL",v:18}].map(f=>(<button key={f.v} onClick={()=>setFsize(f.v)} style={{padding:"6px 12px",borderRadius:4,border:"1px solid "+th.border,background:fsize===f.v?th.accent:"transparent",color:fsize===f.v?"#000":th.textMuted,fontSize:"0.82em",cursor:"pointer",fontWeight:700}}>{f.l}</button>))}
+          </div>
+        </div>
+      </div>
+    </div>}
+
+    {/* Sync bar */}
+    <div style={{background:th.syncBg,padding:"8px 14px",borderBottom:"1px solid "+th.border}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+        <button onClick={doF} disabled={fs==="loading"} style={{background:"none",border:"1px solid "+th.border,borderRadius:5,color:fs==="loading"?th.textMuted:th.green,fontSize:"0.88em",padding:"6px 12px",cursor:"pointer",fontFamily:"monospace",fontWeight:700}}>{fs==="loading"?"⏳ Syncing...":"↻ Sync"}</button>
+        <span style={{fontSize:"0.65em",color:th.textDark,fontFamily:"monospace"}}>{tot} games</span>
+        <div style={{display:"flex",gap:4}}>
+          <button onClick={()=>hardReload()} style={{background:"none",border:"1px solid "+th.border,borderRadius:5,color:th.textDim,fontSize:"0.72em",padding:"4px 8px",cursor:"pointer",fontFamily:"monospace"}}>↺ Page</button>
+          <button onClick={rst} style={{background:"none",border:"1px solid "+th.red+"44",borderRadius:5,color:th.red,fontSize:"0.72em",padding:"4px 8px",cursor:"pointer",fontFamily:"monospace"}}>Reset</button>
+        </div>
+      </div>
+      {fm&&<div style={{fontSize:"0.72em",fontFamily:"monospace",padding:"4px 8px",borderRadius:4,marginTop:2,background:fs==="error"?th.redBg:fs==="success"?th.greenBg:th.syncBg,color:fs==="error"?th.red:fs==="success"?th.green:th.textDim}}>{fm}</div>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <button onClick={()=>setSd(!sd)} style={{background:"none",border:"none",color:th.textDark,fontSize:"0.65em",cursor:"pointer",fontFamily:"monospace",padding:"3px 0"}}>{sd?"▼ Hide debug":"▶ Debug"}</button>
+        <span style={{fontSize:"0.55em",color:th.textDark,fontFamily:"monospace"}}>v{APP_VERSION}</span>
+      </div>
+      {sd&&<div style={{maxHeight:200,overflow:"auto",background:mode==="dark"?"#000":"#f0f0f0",borderRadius:4,padding:8,marginTop:4,fontSize:"0.6em",color:th.textMuted,fontFamily:"monospace",whiteSpace:"pre-wrap"}}>{dl.map((l,i)=><div key={i} style={{color:l.includes("→")?th.green:l.includes("ERR")?th.red:l.startsWith("Pool")?th.accent:th.textMuted}}>{l}</div>)}</div>}
+    </div>
+
+    {/* Playoffs status */}
+    <div style={{background:th.card,borderBottom:"1px solid "+th.border}}>
+      <div style={{padding:"10px 14px 6px",fontSize:"0.95em",fontWeight:800,color:th.text,fontFamily:"'Space Grotesk',sans-serif",letterSpacing:2,textAlign:"center"}}>PLAYOFFS</div>
+      <div style={{display:"flex",borderTop:"1px solid "+th.border}}>
+        <div onClick={()=>{setTab("playoffs");setTier1Open(true);setTier2Open(false)}} style={{flex:1,textAlign:"center",padding:"14px 8px",cursor:"pointer",borderRight:"1px solid "+th.border}}>
+          <div style={{fontSize:"0.85em",color:th.green,fontFamily:"monospace",fontWeight:800,letterSpacing:1}}>TIER 1 ›</div>
+        </div>
+        <div onClick={()=>{setTab("playoffs");setTier2Open(true);setTier1Open(false)}} style={{flex:1,textAlign:"center",padding:"14px 8px",cursor:"pointer"}}>
+          <div style={{fontSize:"0.85em",color:th.accent,fontFamily:"monospace",fontWeight:800,letterSpacing:1}}>TIER 2 ›</div>
+        </div>
+      </div>
+    </div>
+
+    {/* Tabs */}
+    <div style={{display:"flex",borderBottom:"1px solid "+th.border,background:th.syncBg}}>
+      {[{k:"home",l:"🏐 Home"},{k:"pools",l:"All Pools"},{k:"standings",l:"Standings"},{k:"teams",l:"Tier %"},{k:"playoffs",l:"Playoffs"}].map(t=>(<button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"10px 2px",background:"transparent",border:"none",borderBottom:tab===t.k?"2px solid "+th.accent:"2px solid transparent",color:tab===t.k?th.accent:th.textMuted,fontSize:"0.72em",fontWeight:700,cursor:"pointer"}}>{t.l}</button>))}
+    </div>
+
+    <div style={{padding:"12px 14px 40px"}}>
+      {/* HOME TAB - Playoff focus */}
+      {tab==="home"&&(()=>{
+        // Find team's QF game
+        const qfGame=[...T1Q,...T2Q].find(q=>{
+          const tA=resQF(q.seeds[0]),tB=resQF(q.seeds[1]);
+          return tA.id===homeTeam||tB.id===homeTeam;
+        });
+        // Find team's round 2 game (Semi or Con-Semi)
+        let r2Game=null,r3Game=null;
+        if(qfGame){
+          const isT1=qfGame.id.startsWith("z");
+          const r2Games=isT1?ST1.slice(0,4):ST2.slice(0,4);
+          for(const r2 of r2Games){
+            const tA=resolveBracketTeam(r2.homeFrom),tB=resolveBracketTeam(r2.awayFrom);
+            if(tA.id===homeTeam||tB.id===homeTeam){r2Game=r2;break}
+          }
+          if(r2Game){
+            const r3Games=isT1?ST1.slice(4):ST2.slice(4);
+            for(const r3 of r3Games){
+              const tA=resolveBracketTeam(r3.homeFrom),tB=resolveBracketTeam(r3.awayFrom);
+              if(tA.id===homeTeam||tB.id===homeTeam){r3Game=r3;break}
+            }
+          }
+        }
+        const bracketColor=qfGame?.id.startsWith("z")?th.green:th.accent;
+        const tierLabel=qfGame?.id.startsWith("z")?"TIER 1 — Z BRACKET":"TIER 2 — Y BRACKET";
+        return(<div>
+          {qfGame?(<>
+            <div style={{background:th.card,border:"1px solid "+th.border,borderRadius:10,padding:12,marginBottom:12}}>
+              <div style={{fontSize:"0.7em",color:bracketColor,fontFamily:"monospace",fontWeight:700,letterSpacing:1.5,marginBottom:4}}>{tierLabel}</div>
+              <div style={{fontSize:"1.1em",fontWeight:800,color:th.text}}>Playoff Path</div>
+              <div style={{fontSize:"0.85em",color:th.textDim,marginTop:2,fontWeight:600}}>{homeT?.name}</div>
+              <div style={{fontSize:"0.72em",color:th.textMuted,marginTop:4}}>Pool {homePk} #{homeRank} · {homeRec?.w}-{homeRec?.l} in pool play</div>
+            </div>
+            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8,letterSpacing:1}}>QUARTERFINAL</div>
+            <QFC qf={qfGame}/>
+            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:14,marginBottom:8,letterSpacing:1}}>{r2Game?.label?.includes("Con")?"CONSOLATION SEMI":"SEMI-FINAL"}</div>
+            {r2Game?<KO g={r2Game}/>:<div style={{fontSize:"0.75em",color:th.textDark,fontStyle:"italic",padding:10}}>Determined after QF</div>}
+            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:14,marginBottom:8,letterSpacing:1}}>FINAL PLACEMENT</div>
+            {r3Game?<KO g={r3Game}/>:<div style={{fontSize:"0.75em",color:th.textDark,fontStyle:"italic",padding:10}}>Determined after {r2Game?.label?.includes("Con")?"Con-Semi":"Semi"}</div>}
+          </>):(<div style={{padding:20,textAlign:"center",color:th.textMuted}}>
+            <div style={{fontSize:"1em",marginBottom:8}}>🏐</div>
+            <div style={{fontSize:"0.85em"}}>{homeT?.name}'s playoff slot not yet determined</div>
+            <div style={{fontSize:"0.75em",color:th.textDark,marginTop:6}}>Pool play needs to complete first</div>
+          </div>)}
+          <div style={{marginTop:20,paddingTop:14,borderTop:"1px solid "+th.border}}>
+            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8,letterSpacing:1}}>POOL {homePk} RESULTS</div>
+            {POOLS[homePk].games.filter(g=>g.home===homeTeam||g.away===homeTeam).map(g=><GC key={g.id} game={g}/>)}
+            <STbl pk={homePk}/>
+          </div>
+        </div>);
+      })()}
+
+      {/* ALL POOLS */}
+      {tab==="pools"&&<div>
+        <div style={{display:"flex",gap:6,marginBottom:12}}>{["E","F","G","H"].map(k=>(<button key={k} onClick={()=>setPt(k)} style={{flex:1,padding:"8px 0",borderRadius:6,border:"none",cursor:"pointer",fontWeight:700,fontSize:"0.85em",fontFamily:"monospace",background:pt===k?(k===homePk?th.accent:th.btnActive):th.btnBg,color:pt===k?(k===homePk?"#000":th.text):th.textMuted}}>Pool {k}</button>))}</div>
+        {POOLS[pt].games.map(g=><GC key={g.id} game={g}/>)}
+      </div>}
+
+      {/* STANDINGS */}
+      {tab==="standings"&&<div>{["E","F","G","H"].map(k=><STbl key={k} pk={k}/>)}</div>}
+
+      {/* TEAMS T1/T2 CHANCES */}
+      {tab==="teams"&&<div>
+        <div style={{fontSize:"0.78em",color:th.textDim,fontWeight:700,marginBottom:4,fontFamily:"monospace"}}>CHAMPIONSHIP CHANCES</div>
+        <div style={{fontSize:"0.7em",color:th.textDark,marginBottom:12}}>Probability of reaching Tier 1 (top 2) vs Tier 2 (bottom 2) based on all remaining game outcomes</div>
+        {["E","F","G","H"].map(pk=>{
+          const st=aS[pk],dn=pD(pk,sc);
+          return(<div key={pk} style={{marginBottom:16}}>
+            <div style={{fontSize:"0.78em",color:th.textDim,fontWeight:700,fontFamily:"monospace",marginBottom:6}}>{POOLS[pk].name} {dn&&<span style={{color:th.green}}>✓ Final</span>}</div>
+            {st.map((t,i)=>{
+              const ch=chances[t.id]||{t1:0,t2:0};
+              const isMe=t.id===homeTeam;
+              return(<div key={t.id} style={{background:isMe?th.accentBg:th.card,border:"1px solid "+(isMe?th.accent+"44":th.border),borderRadius:8,padding:10,marginBottom:6}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <div><span style={{fontWeight:isMe?800:600,color:isMe?th.accent:th.text,fontSize:"0.9em"}}>{t.name}</span><span style={{fontSize:"0.7em",color:th.textDark,marginLeft:6}}>{t.id} · {t.w}W-{t.l}L</span></div>
+                  <div style={{fontWeight:800,fontSize:"1em",color:ch.t1>=50?th.green:ch.t1>0?th.accent:th.red}}>{ch.t1}%</div>
+                </div>
+                <div style={{display:"flex",height:8,borderRadius:4,overflow:"hidden",background:th.syncBg}}>
+                  {ch.t1>0&&<div style={{width:ch.t1+"%",background:th.t1bar,borderRadius:"4px 0 0 4px",transition:"width 0.3s"}}/>}
+                  {ch.t2>0&&<div style={{width:ch.t2+"%",background:th.t2bar,borderRadius:"0 4px 4px 0",transition:"width 0.3s"}}/>}
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:3,fontSize:"0.65em",color:th.textDark,fontFamily:"monospace"}}>
+                  <span style={{color:th.green}}>Tier 1 Championship: {ch.t1}%</span>
+                  <span style={{color:th.accent}}>Tier 2 Consolation: {ch.t2}%</span>
+                </div>
+              </div>)
+            })}
+          </div>)
+        })}
+      </div>}
+
+      {/* PLAYOFFS */}
+      {tab==="playoffs"&&<div>
+        {/* TIER 1 */}
+        <div onClick={()=>setTier1Open(!tier1Open)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 10px",background:th.card,border:"1px solid "+th.border,borderRadius:tier1Open?"8px 8px 0 0":"8px",cursor:"pointer",marginBottom:tier1Open?0:10}}>
+          <div>
+            <div style={{fontSize:"0.9em",color:th.green,fontFamily:"monospace",fontWeight:800}}>TIER 1 CHAMPIONSHIP — Z BRACKET</div>
+            <div style={{fontSize:"0.72em",color:th.textDark,marginTop:2}}>1st & 2nd from each pool · Sat 6:30 PM</div>
+          </div>
+          <span style={{fontSize:"1.2em",color:th.textMuted,pointerEvents:"none",transition:"transform 0.2s",transform:tier1Open?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+        </div>
+        {tier1Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"10px 10px 12px",marginBottom:10}}>
+          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8}}>QUARTERFINALS</div>
+          {T1Q.map(q=><QFC key={q.id} qf={q}/>)}
+          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:12,marginBottom:6}}>SEMI-FINALS — Sunday 12:15 PM</div>
+          {ST1.slice(0,4).map(g=><KO key={g.id} g={g}/>)}
+          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:12,marginBottom:6}}>FINALS — Sunday 5:15 PM</div>
+          {ST1.slice(4).map(g=><KO key={g.id} g={g}/>)}
+        </div>}
+
+        {/* TIER 2 */}
+        <div onClick={()=>setTier2Open(!tier2Open)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 10px",background:th.card,border:"1px solid "+th.border,borderRadius:tier2Open?"8px 8px 0 0":"8px",cursor:"pointer",marginBottom:tier2Open?0:10}}>
+          <div>
+            <div style={{fontSize:"0.9em",color:th.accent,fontFamily:"monospace",fontWeight:800}}>TIER 2 CONSOLATION — Y BRACKET</div>
+            <div style={{fontSize:"0.72em",color:th.textDark,marginTop:2}}>3rd & 4th from each pool · Sat 5:15 PM</div>
+          </div>
+          <span style={{fontSize:"1.2em",color:th.textMuted,pointerEvents:"none",transition:"transform 0.2s",transform:tier2Open?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+        </div>
+        {tier2Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"10px 10px 12px",marginBottom:10}}>
+          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8}}>QUARTERFINALS</div>
+          {T2Q.map(q=><QFC key={q.id} qf={q}/>)}
+          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:12,marginBottom:6}}>SEMI-FINALS — Sunday 9:45 AM</div>
+          {ST2.slice(0,4).map(g=><KO key={g.id} g={g}/>)}
+          <div style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:12,marginBottom:6}}>FINALS — Sunday 2:45 PM</div>
+          {ST2.slice(4).map(g=><KO key={g.id} g={g}/>)}
+        </div>}
+      </div>}
+    </div>
+  </div>);
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
