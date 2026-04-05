@@ -315,7 +315,7 @@ const themes={
 };
 
 const SK="apex-v13";
-const APP_VERSION="2026.04.05.3";
+const APP_VERSION="2026.04.05.4";
 
 // Cache-busting reload - works on iOS/Android homescreen apps
 function hardReload(){
@@ -477,8 +477,29 @@ function App(){
   }
 
   // Components
-  const GC=({game})=>{const h=AT[game.home],a=AT[game.away],has=sc[game.id]?.sets?.length>0;const isHome=game.home===homeTeam||game.away===homeTeam;
-    return(<div style={{background:has?th.cardHi:th.card,border:"1px solid "+(isHome?th.accent+"44":th.border),borderRadius:8,padding:12,marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:"0.75em",color:isHome?th.accent:th.textMuted,fontFamily:"monospace",fontWeight:700}}>{game.home} vs {game.away}</span><div style={{display:"flex",gap:6,alignItems:"center"}}>{has&&<span style={{fontSize:"0.6em",color:th.green}}>✓</span>}<span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{game.time} · {game.court}</span></div></div><div style={{display:"flex",alignItems:"flex-start",gap:8}}><div style={{flex:1,minWidth:0}}><div style={{fontSize:"0.85em",fontWeight:game.home===homeTeam?800:500,color:game.home===homeTeam?th.accent:th.text}}>{h?.name}</div></div><SI sets={sc[game.id]?.sets||[]} onChange={x=>up(game.id,x)} th={th}/><div style={{flex:1,textAlign:"right",minWidth:0}}><div style={{fontSize:"0.85em",fontWeight:game.away===homeTeam?800:500,color:game.away===homeTeam?th.accent:th.text}}>{a?.name}</div></div></div></div>)};
+  const WINNER_STYLE={fontSize:"0.58em",fontWeight:800,color:th.green,marginTop:3,letterSpacing:1.5,fontFamily:"monospace"};
+  const GC=({game})=>{
+    const h=AT[game.home],a=AT[game.away],has=sc[game.id]?.sets?.length>0;
+    const isHome=game.home===homeTeam||game.away===homeTeam;
+    const r=getGameResult(game.id);
+    return(<div style={{background:has?th.cardHi:th.card,border:"1px solid "+(isHome?th.accent+"44":th.border),borderRadius:8,padding:12,marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+        <span style={{fontSize:"0.75em",color:isHome?th.accent:th.textMuted,fontFamily:"monospace",fontWeight:700}}>{game.home} vs {game.away}</span>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>{has&&<span style={{fontSize:"0.6em",color:th.green}}>✓</span>}<span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{game.time} · {game.court}</span></div>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:"0.85em",fontWeight:game.home===homeTeam?800:500,color:game.home===homeTeam?th.accent:th.text}}>{h?.name}</div>
+          {r?.winner==="home"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+        <SI sets={sc[game.id]?.sets||[]} onChange={x=>up(game.id,x)} th={th}/>
+        <div style={{flex:1,textAlign:"right",minWidth:0}}>
+          <div style={{fontSize:"0.85em",fontWeight:game.away===homeTeam?800:500,color:game.away===homeTeam?th.accent:th.text}}>{a?.name}</div>
+          {r?.winner==="away"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+      </div>
+    </div>)
+  };
 
   const STbl=({pk})=>{const st=aS[pk],dn=pD(pk,sc),ct=pC(pk,sc);
     const thS={padding:"6px 6px",fontSize:"0.6em",color:th.textDark,fontFamily:"monospace",fontWeight:500,textAlign:"center",borderBottom:"1px solid "+th.border,whiteSpace:"nowrap"};
@@ -542,22 +563,50 @@ function App(){
       <div style={{padding:"8px 10px",fontSize:"0.62em",color:th.textDark,fontFamily:"monospace",background:th.syncBg,lineHeight:1.5}}>Tiebreakers: 1) Match Pts → 2) Set Ratio → 3) Point Ratio · Swipe table to scroll</div>
     </div>)};
 
-  const QFC=({qf})=>{const tA=resQF(qf.seeds[0]),tB=resQF(qf.seeds[1]),ap=tA.id===homeTeam||tB.id===homeTeam;return(<div style={{background:ap?th.accentBg:th.card,border:"1px solid "+(ap?th.accent+"88":th.border),borderRadius:8,padding:10,marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:"0.75em",color:ap?th.accent:th.textMuted,fontFamily:"monospace",fontWeight:700}}>{qf.label}</span><span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{qf.time} · {qf.court}</span></div><div style={{display:"flex",alignItems:"flex-start",gap:8}}><div style={{flex:1}}><div style={{fontSize:"0.85em",fontWeight:tA.id===homeTeam?800:500,color:tA.id===homeTeam?th.accent:tA.ok?th.text:th.textMuted}}>{tA.name}</div></div><SI sets={sc[qf.id]?.sets||[]} onChange={x=>up(qf.id,x)} th={th}/><div style={{flex:1,textAlign:"right"}}><div style={{fontSize:"0.85em",fontWeight:tB.id===homeTeam?800:500,color:tB.id===homeTeam?th.accent:tB.ok?th.text:th.textMuted}}>{tB.name}</div></div></div></div>)};
+  const QFC=({qf})=>{
+    const tA=resQF(qf.seeds[0]),tB=resQF(qf.seeds[1]);
+    const ap=tA.id===homeTeam||tB.id===homeTeam;
+    const r=getGameResult(qf.id);
+    return(<div style={{background:ap?th.accentBg:th.card,border:"1px solid "+(ap?th.accent+"88":th.border),borderRadius:8,padding:10,marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontSize:"0.75em",color:ap?th.accent:th.textMuted,fontFamily:"monospace",fontWeight:700}}>{qf.label}</span>
+        <span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{qf.time} · {qf.court}</span>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:"0.85em",fontWeight:tA.id===homeTeam?800:500,color:tA.id===homeTeam?th.accent:tA.ok?th.text:th.textMuted}}>{tA.name}</div>
+          {r?.winner==="home"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+        <SI sets={sc[qf.id]?.sets||[]} onChange={x=>up(qf.id,x)} th={th}/>
+        <div style={{flex:1,textAlign:"right"}}>
+          <div style={{fontSize:"0.85em",fontWeight:tB.id===homeTeam?800:500,color:tB.id===homeTeam?th.accent:tB.ok?th.text:th.textMuted}}>{tB.name}</div>
+          {r?.winner==="away"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
+      </div>
+    </div>)
+  };
 
   const KO=({g})=>{
     const tA=resolveBracketTeam(g.homeFrom);
     const tB=resolveBracketTeam(g.awayFrom);
     const ap=(tA.id&&tA.id===homeTeam)||(tB.id&&tB.id===homeTeam);
     const isGold=g.label.includes("GOLD");
+    const r=getGameResult(g.id);
     return(<div style={{background:isGold||ap?th.accentBg:th.card,border:"1px solid "+(isGold||ap?th.accent+"88":th.border),borderRadius:8,padding:10,marginBottom:6}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
         <span style={{fontSize:"0.75em",color:isGold?th.accent:th.textDim,fontFamily:"monospace",fontWeight:700}}>{g.label}</span>
         <span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{g.time} · {g.court}</span>
       </div>
       <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-        <div style={{flex:1}}><div style={{fontSize:"0.85em",fontWeight:tA.id===homeTeam?800:500,color:tA.id===homeTeam?th.accent:tA.ok?th.text:th.textMuted}}>{tA.name}</div></div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:"0.85em",fontWeight:tA.id===homeTeam?800:500,color:tA.id===homeTeam?th.accent:tA.ok?th.text:th.textMuted}}>{tA.name}</div>
+          {r?.winner==="home"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
         <SI sets={sc[g.id]?.sets||[]} onChange={x=>up(g.id,x)} th={th}/>
-        <div style={{flex:1,textAlign:"right"}}><div style={{fontSize:"0.85em",fontWeight:tB.id===homeTeam?800:500,color:tB.id===homeTeam?th.accent:tB.ok?th.text:th.textMuted}}>{tB.name}</div></div>
+        <div style={{flex:1,textAlign:"right"}}>
+          <div style={{fontSize:"0.85em",fontWeight:tB.id===homeTeam?800:500,color:tB.id===homeTeam?th.accent:tB.ok?th.text:th.textMuted}}>{tB.name}</div>
+          {r?.winner==="away"&&<div style={WINNER_STYLE}>WINNER</div>}
+        </div>
       </div>
     </div>);
   };
