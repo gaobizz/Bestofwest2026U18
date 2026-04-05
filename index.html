@@ -89,91 +89,171 @@ async function fetchBracket(){
   return null;
 }
 
+// Bracket layout: teams in matchup column, winner name listed in NEXT column
+// above match count and set scores. We scan for volleyball set scores then
+// walk UP in the same column to find the winner's name.
 function parseBracket(rows,poolStandings,logs){
   const parsed={};
   if(!rows||!rows.length)return parsed;
 
-  const matchAbbrev=cell=>{
-    const c=String(cell||"").toLowerCase().trim().replace(/[.,]/g,"").replace(/\s+/g," ");
+  // More lenient team name matcher — handles trailing noise like "FVVC (W)"
+  const matchTeam=cell=>{
+    let c=String(cell||"").toLowerCase().trim().replace(/[.,()\[\]]/g,"").replace(/\s+/g," ");
     if(!c)return null;
     if(TEAM_ABBREV[c])return TEAM_ABBREV[c];
+    // Try progressively shorter prefixes (strip trailing words)
+    const words=c.split(" ");
+    for(let n=words.length;n>=1;n--){
+      const key=words.slice(0,n).join(" ");
+      if(TEAM_ABBREV[key])return TEAM_ABBREV[key];
+    }
+    // Word-boundary match, longest keys first
+    const keys=Object.keys(TEAM_ABBREV).sort((a,b)=>b.length-a.length);
+    for(const k of keys){
+      if(k.length<4)continue;
+      const re=new RegExp("\\b"+k.replace(/\s+/g,"\\s+")+"\\b");
+      if(re.test(c))return TEAM_ABBREV[k];
+    }
     return null;
   };
 
-  const qfSlotId=seed=>{const pk=seed[0],sn=parseInt(seed[1]);const st=poolStandings[pk];if(!st||!st[sn-1])return null;return st[sn-1].id};
+  // Volleyball set scores: "23-25, 25-18, 15-13" — must have at least one 15+
+  const parseScores=cell=>{
+    const s=String(cell||"").trim().replace(/[\u2013\u2014]/g,"-");
+    if(!/^\d{1,2}-\d{1,2}(\s*,\s*\d{1,2}-\d{1,2}){0,3}$/.test(s))return null;
+    const pairs=[];const re=/(\d{1,2})-(\d{1,2})/g;let m;
+    while((m=re.exec(s))!==null)pairs.push({a:parseInt(m[1]),b:parseInt(m[2])});
+    if(!pairs.length)return null;
+    const nums=pairs.flatMap(p=>[p.a,p.b]);
+    if(Math.max(...nums)<15)return null;
+    return pairs;
+  };
 
-  const resolveFromChain=(source,passScores)=>{
+  const qfSlotId=seed=>{
+    const pk=seed[0],sn=parseInt(seed[1]);
+    const st=poolStandings[pk];
+    if(!st||!st[sn-1])return null;
+    return st[sn-1].id;
+  };
+
+  // Collect every cell that looks like volleyball set scores
+  const scoreLocs=[];
+  for(let r=0;r<rows.length;r++){
+    const row=rows[r]||[];
+    for(let c=0;c<row.length;c++){
+      const p=parseScores(row[c]);
+      if(p)scoreLocs.push({r,c,pairs:p});
+    }
+  }
+  logs.push("  Found "+scoreLocs.length+" set-score cells");
+
+  const usedLocs=new Set();
+
+  // For a given matchup, find the score cell in the sheet.
+  // Strategy: winner name sits directly ABOVE the score cell in SAME column,
+  // 1-5 rows up. Also verify the loser's name appears in nearby area.
+  const findMatch=(homeId,awayId)=>{
+    if(!homeId||!awayId||homeId===awayId)return null;
+    const candidates=[];
+    for(const loc of scoreLocs){
+      const key=loc.r+":"+loc.c;
+      if(usedLocs.has(key))continue;
+      // Look for winner name directly above score cell, same column
+      let winnerId=null,winnerDr=0;
+      for(let dr=-1;dr>=-5&&!winnerId;dr--){
+        const id=matchTeam((rows[loc.r+dr]||[])[loc.c]);
+        if(id===homeId||id===awayId){winnerId=id;winnerDr=dr}
+      }
+      if(!winnerId)continue;
+      // Verify BOTH teams present in broader window around score cell
+      // Matchup column is usually 1 left of winner column
+      const otherTeam=winnerId===homeId?awayId:homeId;
+      let foundOther=false;
+      for(let dr=-6;dr<=2&&!foundOther;dr++){
+        for(let dc=-2;dc<=1&&!foundOther;dc++){
+          const id=matchTeam((rows[loc.r+dr]||[])[loc.c+dc]);
+          if(id===otherTeam)foundOther=true;
+        }
+      }
+      if(!foundOther)continue;
+      // Closer winner = better candidate (tighter bracket layout)
+      candidates.push({loc,key,winnerId,score:winnerDr});
+    }
+    if(!candidates.length)return null;
+    // Prefer candidate where winner is closest (smallest |dr|)
+    candidates.sort((a,b)=>Math.abs(a.score)-Math.abs(b.score));
+    const best=candidates[0];
+    usedLocs.add(best.key);
+    return{winnerId:best.winnerId,pairs:best.loc.pairs};
+  };
+
+  // Orient scores to home/away: determine which side won more sets,
+  // match that to the known winner, flip pairs accordingly
+  const buildSets=(homeId,awayId,winnerId,pairs)=>{
+    let fw=0,sw=0;
+    pairs.forEach(p=>{if(p.a>p.b)fw++;else if(p.b>p.a)sw++});
+    const firstSideWon=fw>sw;
+    if(winnerId===homeId){
+      return firstSideWon?pairs.map(p=>({home:p.a,away:p.b})):pairs.map(p=>({home:p.b,away:p.a}));
+    }else{
+      return firstSideWon?pairs.map(p=>({home:p.b,away:p.a})):pairs.map(p=>({home:p.a,away:p.b}));
+    }
+  };
+
+  // Walk the bracket chain to figure out who plays in later rounds
+  const resolveChain=(source,pending)=>{
     if(!source)return null;
     const{gid,r}=source;
-    const g=passScores[gid];
-    if(!g||!g.sets||!g.sets.length)return null;
+    const sets=pending[gid];
+    if(!sets||!sets.length)return null;
     let hW=0,aW=0;
-    for(const s of g.sets){if(s.home>s.away)hW++;else if(s.away>s.home)aW++}
+    for(const s of sets){if(s.home>s.away)hW++;else if(s.away>s.home)aW++}
     if(hW===0&&aW===0)return null;
     const want=r==="winner"?(hW>aW?"home":"away"):(hW>aW?"away":"home");
     const qf=[...T1Q,...T2Q].find(q=>q.id===gid);
     if(qf)return want==="home"?qfSlotId(qf.seeds[0]):qfSlotId(qf.seeds[1]);
     const later=[...ST1,...ST2].find(x=>x.id===gid);
-    if(later){const hid=resolveFromChain(later.homeFrom,passScores),aid=resolveFromChain(later.awayFrom,passScores);return want==="home"?hid:aid}
+    if(later){
+      const hid=resolveChain(later.homeFrom,pending);
+      const aid=resolveChain(later.awayFrom,pending);
+      return want==="home"?hid:aid;
+    }
     return null;
   };
 
-  const findLabel=label=>{for(let r=0;r<rows.length;r++){const row=rows[r]||[];for(let c=0;c<row.length;c++){if(String(row[c]||"").trim().toUpperCase()===label)return{r,c}}}return null};
+  const assigned={};
 
-  // For each game: find label, then search tight window (r-2..r+3, c+1..c+2)
-  // for BOTH winner team name AND set scores. Must find both to accept.
-  const tryParseGame=(gameId,homeId,awayId)=>{
-    if(!homeId||!awayId)return null;
-    const label=gameId.toUpperCase();
-    const loc=findLabel(label);
-    if(!loc){logs.push("  "+label+": not found");return null}
-    let scoresCell=null,winnerId=null;
-    for(let dr=-2;dr<=3;dr++){
-      for(let dc=1;dc<=2;dc++){
-        const cell=String((rows[loc.r+dr]||[])[loc.c+dc]||"").trim();
-        if(!cell)continue;
-        // Set scores: comma-separated with at least one number >= 15 (volleyball)
-        if(!scoresCell&&/^\d{1,2}-\d{1,2}(\s*,\s*\d{1,2}-\d{1,2}){0,3}$/.test(cell)){
-          const nums=(cell.match(/\d{1,2}/g)||[]).map(n=>parseInt(n));
-          if(nums.length>0&&Math.max(...nums)>=15)scoresCell=cell;
-        }
-        // Winner name: must be one of the two teams in this game
-        if(!winnerId){const id=matchAbbrev(cell);if(id&&(id===homeId||id===awayId))winnerId=id}
-      }
+  // Pass 1: QFs (Z1-Z4, Y1-Y4)
+  for(const qf of[...T1Q,...T2Q]){
+    const homeId=qfSlotId(qf.seeds[0]),awayId=qfSlotId(qf.seeds[1]);
+    const r=findMatch(homeId,awayId);
+    if(r){
+      assigned[qf.id]=buildSets(homeId,awayId,r.winnerId,r.pairs);
+      logs.push("  "+qf.id.toUpperCase()+": "+homeId+" vs "+awayId+" W:"+r.winnerId+" ["+r.pairs.map(p=>p.a+"-"+p.b).join(",")+"]");
+    }else{
+      logs.push("  "+qf.id.toUpperCase()+": not found ("+(homeId||"?")+" vs "+(awayId||"?")+")");
     }
-    if(!scoresCell){logs.push("  "+label+": no scores");return null}
-    if(!winnerId){logs.push("  "+label+": winner not identified ("+homeId+"/"+awayId+")");return null}
-    const raw=[];const re=/(\d{1,2})-(\d{1,2})/g;let m;
-    while((m=re.exec(scoresCell))!==null)raw.push({a:parseInt(m[1]),b:parseInt(m[2])});
-    if(!raw.length)return null;
-    let fw=0,sw=0;raw.forEach(s=>{if(s.a>s.b)fw++;else if(s.b>s.a)sw++});
-    const firstWin=fw>sw;
-    let sets;
-    if(winnerId===homeId)sets=firstWin?raw.map(s=>({home:s.a,away:s.b})):raw.map(s=>({home:s.b,away:s.a}));
-    else sets=firstWin?raw.map(s=>({home:s.b,away:s.a})):raw.map(s=>({home:s.a,away:s.b}));
-    logs.push("  "+label+" → "+sets.map(s=>s.home+"-"+s.away).join(", ")+" W:"+winnerId);
-    return{sets};
-  };
+  }
+  // Pass 2: Semis / Con-Semis
+  for(const game of[...ST1.slice(0,4),...ST2.slice(0,4)]){
+    const homeId=resolveChain(game.homeFrom,assigned),awayId=resolveChain(game.awayFrom,assigned);
+    const r=findMatch(homeId,awayId);
+    if(r){
+      assigned[game.id]=buildSets(homeId,awayId,r.winnerId,r.pairs);
+      logs.push("  "+game.id.toUpperCase()+": "+homeId+" vs "+awayId+" W:"+r.winnerId+" ["+r.pairs.map(p=>p.a+"-"+p.b).join(",")+"]");
+    }
+  }
+  // Pass 3: Finals / placement games
+  for(const game of[...ST1.slice(4),...ST2.slice(4)]){
+    const homeId=resolveChain(game.homeFrom,assigned),awayId=resolveChain(game.awayFrom,assigned);
+    const r=findMatch(homeId,awayId);
+    if(r){
+      assigned[game.id]=buildSets(homeId,awayId,r.winnerId,r.pairs);
+      logs.push("  "+game.id.toUpperCase()+": "+homeId+" vs "+awayId+" W:"+r.winnerId+" ["+r.pairs.map(p=>p.a+"-"+p.b).join(",")+"]");
+    }
+  }
 
-  // Pass 1: QFs (home/away from pool standings)
-  for(const qf of [...T1Q,...T2Q]){
-    const hid=qfSlotId(qf.seeds[0]),aid=qfSlotId(qf.seeds[1]);
-    const r=tryParseGame(qf.id,hid,aid);
-    if(r)parsed[qf.id]=r;
-  }
-  // Pass 2: Semis
-  let merged={...parsed};
-  for(const game of [...ST1.slice(0,4),...ST2.slice(0,4)]){
-    const hid=resolveFromChain(game.homeFrom,merged),aid=resolveFromChain(game.awayFrom,merged);
-    const r=tryParseGame(game.id,hid,aid);
-    if(r){parsed[game.id]=r;merged[game.id]=r}
-  }
-  // Pass 3: Finals
-  for(const game of [...ST1.slice(4),...ST2.slice(4)]){
-    const hid=resolveFromChain(game.homeFrom,merged),aid=resolveFromChain(game.awayFrom,merged);
-    const r=tryParseGame(game.id,hid,aid);
-    if(r){parsed[game.id]=r;merged[game.id]=r}
-  }
+  for(const[gid,sets]of Object.entries(assigned))parsed[gid]={sets};
   return parsed;
 }
 
@@ -235,7 +315,7 @@ const themes={
 };
 
 const SK="apex-v13";
-const APP_VERSION="2026.04.05.2";
+const APP_VERSION="2026.04.05.3";
 
 // Cache-busting reload - works on iOS/Android homescreen apps
 function hardReload(){
