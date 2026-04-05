@@ -59,6 +59,18 @@ const ST2=[
   {id:"y11",label:"Y11 11th",time:"Sun 2:45",court:"West",homeFrom:{gid:"y7",r:"loser"},awayFrom:{gid:"y8",r:"loser"}},
   {id:"y12",label:"Y12 9th",time:"Sun 2:45",court:"Center",homeFrom:{gid:"y7",r:"winner"},awayFrom:{gid:"y8",r:"winner"}}];
 
+// Placement games: map game id to winner's rank / loser's rank
+const PLACEMENT_GAMES={
+  z12:{w:1,l:2,wLabel:"1st · Best in the West 🏆",lLabel:"2nd"},
+  z11:{w:3,l:4,wLabel:"3rd · Bronze 🥉",lLabel:"4th"},
+  z9:{w:5,l:6,wLabel:"5th",lLabel:"6th"},
+  z10:{w:7,l:8,wLabel:"7th",lLabel:"8th"},
+  y12:{w:9,l:10,wLabel:"9th",lLabel:"10th"},
+  y11:{w:11,l:12,wLabel:"11th",lLabel:"12th"},
+  y9:{w:13,l:14,wLabel:"13th",lLabel:"14th"},
+  y10:{w:15,l:16,wLabel:"15th",lLabel:"16th"}
+};
+
 // --- FETCH & PARSE ---
 async function fetchPool(pk){const gid=GIDS[pk];const urls=[`https://docs.google.com/spreadsheets/d/${SID}/export?format=csv&gid=${gid}`,`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&gid=${gid}`];for(const url of urls){try{const r=await fetch(url,{redirect:"follow"});if(!r.ok)continue;const t=await r.text();if(t.length<30||t.includes("<!DOCTYPE"))continue;return{csv:t,rows:Papa.parse(t,{skipEmptyLines:false}).data}}catch(e){continue}}throw new Error("fetch failed")}
 
@@ -319,7 +331,7 @@ const themes={
 };
 
 const SK="apex-v13";
-const APP_VERSION="2026.04.05.5";
+const APP_VERSION="2026.04.05.6";
 
 // Cache-busting reload - works on iOS/Android homescreen apps
 function hardReload(){
@@ -504,8 +516,27 @@ function App(){
     return{name:"TBD",ok:false};
   }
 
+  // Compute final tournament placements (ranks 1-16) based on placement game results
+  const getFinalPlacements=()=>{
+    const results=[];
+    for(const[gid,p]of Object.entries(PLACEMENT_GAMES)){
+      const result=getGameResult(gid);
+      if(!result)continue;
+      const game=[...ST1,...ST2].find(x=>x.id===gid);
+      if(!game)continue;
+      const tHome=resolveBracketTeam(game.homeFrom);
+      const tAway=resolveBracketTeam(game.awayFrom);
+      const winner=result.winner==="home"?tHome:tAway;
+      const loser=result.winner==="home"?tAway:tHome;
+      if(winner.id)results.push({rank:p.w,id:winner.id,name:winner.name,label:p.wLabel});
+      if(loser.id)results.push({rank:p.l,id:loser.id,name:loser.name,label:p.lLabel});
+    }
+    return results.sort((a,b)=>a.rank-b.rank);
+  };
+
   // Components
   const WINNER_STYLE={fontSize:"0.58em",fontWeight:800,color:th.green,marginTop:3,letterSpacing:1.5,fontFamily:"monospace"};
+  const PLACEMENT_STYLE={fontSize:"0.58em",fontWeight:800,color:th.accent,marginTop:2,letterSpacing:1,fontFamily:"monospace"};
   const GC=({game})=>{
     const h=AT[game.home],a=AT[game.away],has=sc[game.id]?.sets?.length>0;
     const isHome=game.home===homeTeam||game.away===homeTeam;
@@ -620,6 +651,9 @@ function App(){
     const ap=(tA.id&&tA.id===homeTeam)||(tB.id&&tB.id===homeTeam);
     const isGold=g.label.includes("GOLD");
     const r=getGameResult(g.id);
+    const place=PLACEMENT_GAMES[g.id];
+    const homePlaceLabel=r&&place?(r.winner==="home"?place.wLabel:place.lLabel):null;
+    const awayPlaceLabel=r&&place?(r.winner==="away"?place.wLabel:place.lLabel):null;
     return(<div style={{background:isGold||ap?th.accentBg:th.card,border:"1px solid "+(isGold||ap?th.accent+"88":th.border),borderRadius:8,padding:10,marginBottom:6}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
         <span style={{fontSize:"0.75em",color:isGold?th.accent:th.textDim,fontFamily:"monospace",fontWeight:700}}>{g.label}</span>
@@ -629,11 +663,13 @@ function App(){
         <div style={{flex:1}}>
           <div style={{fontSize:"0.85em",fontWeight:tA.id===homeTeam?800:500,color:tA.id===homeTeam?th.accent:tA.ok?th.text:th.textMuted}}>{tA.name}</div>
           {r?.winner==="home"&&<div style={WINNER_STYLE}>WINNER</div>}
+          {homePlaceLabel&&<div style={PLACEMENT_STYLE}>{homePlaceLabel}</div>}
         </div>
         <SI sets={sc[g.id]?.sets||[]} onChange={x=>up(g.id,x)} th={th}/>
         <div style={{flex:1,textAlign:"right"}}>
           <div style={{fontSize:"0.85em",fontWeight:tB.id===homeTeam?800:500,color:tB.id===homeTeam?th.accent:tB.ok?th.text:th.textMuted}}>{tB.name}</div>
           {r?.winner==="away"&&<div style={WINNER_STYLE}>WINNER</div>}
+          {awayPlaceLabel&&<div style={PLACEMENT_STYLE}>{awayPlaceLabel}</div>}
         </div>
       </div>
     </div>);
@@ -821,7 +857,16 @@ function App(){
         }
         const bracketColor=qfGame?.id.startsWith("z")?th.green:th.accent;
         const tierLabel=qfGame?.id.startsWith("z")?"TIER 1 — Z BRACKET":"TIER 2 — Y BRACKET";
+        // Check if home team has a final placement
+        const allPlacements=getFinalPlacements();
+        const myPlacement=allPlacements.find(p=>p.id===homeTeam);
         return(<div>
+          {myPlacement&&<div style={{background:th.accentBg,border:"2px solid "+th.accent,borderRadius:10,padding:14,marginBottom:12,textAlign:"center"}}>
+            <div style={{fontSize:"0.68em",color:th.accent,fontFamily:"monospace",fontWeight:700,letterSpacing:2,marginBottom:6}}>FINAL PLACEMENT</div>
+            <div style={{fontSize:"2.2em",fontWeight:800,color:th.accent,fontFamily:"'Space Grotesk',sans-serif",lineHeight:1}}>#{myPlacement.rank}</div>
+            <div style={{fontSize:"0.85em",color:th.text,fontWeight:700,marginTop:6}}>{myPlacement.label}</div>
+            <div style={{fontSize:"0.72em",color:th.textDim,marginTop:4}}>of 16 teams</div>
+          </div>}
           {qfGame?(<>
             <div style={{background:th.card,border:"1px solid "+th.border,borderRadius:10,padding:12,marginBottom:12}}>
               <div style={{fontSize:"0.7em",color:bracketColor,fontFamily:"monospace",fontWeight:700,letterSpacing:1.5,marginBottom:4}}>{tierLabel}</div>
@@ -889,6 +934,29 @@ function App(){
 
       {/* PLAYOFFS */}
       {tab==="playoffs"&&<div>
+        {/* FINAL STANDINGS - only shows ranks that are determined */}
+        {(()=>{
+          const placements=getFinalPlacements();
+          if(placements.length===0)return null;
+          return(<div style={{marginBottom:12,background:th.card,border:"1px solid "+th.accent+"66",borderRadius:10,overflow:"hidden"}}>
+            <div style={{padding:"10px 12px",background:th.accentBg,borderBottom:"1px solid "+th.border}}>
+              <div style={{fontSize:"0.9em",color:th.accent,fontFamily:"monospace",fontWeight:800,letterSpacing:1.5}}>FINAL STANDINGS 🏆</div>
+              <div style={{fontSize:"0.68em",color:th.textDark,marginTop:2}}>{placements.length} of 16 placements determined</div>
+            </div>
+            {placements.map(p=>{
+              const isMe=p.id===homeTeam;
+              const rankColor=p.rank===1?th.accent:p.rank===2?th.textDim:p.rank===3?"#cd7f32":th.textMuted;
+              return(<div key={p.rank} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",borderBottom:"1px solid "+th.border,background:isMe?th.accentBg:"transparent"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0,flex:1}}>
+                  <span style={{fontSize:"0.85em",fontWeight:800,color:rankColor,fontFamily:"monospace",minWidth:28}}>#{p.rank}</span>
+                  <span style={{fontSize:"0.9em",fontWeight:isMe?800:600,color:isMe?th.accent:th.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.name}</span>
+                </div>
+                <span style={{fontSize:"0.62em",color:p.rank<=3?th.accent:th.textDark,fontWeight:700,fontFamily:"monospace",textAlign:"right",marginLeft:8}}>{p.label}</span>
+              </div>)
+            })}
+          </div>);
+        })()}
+
         {/* TIER 1 */}
         <div onClick={()=>setTier1Open(!tier1Open)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 10px",background:th.card,border:"1px solid "+th.border,borderRadius:tier1Open?"8px 8px 0 0":"8px",cursor:"pointer",marginBottom:tier1Open?0:10}}>
           <div>
