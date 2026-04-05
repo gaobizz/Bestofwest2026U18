@@ -30,6 +30,23 @@ select{-webkit-appearance:none;appearance:none}
 <script type="text/babel">
 const{useState,useEffect,useCallback,useMemo}=React;
 const SID="1wQSna0lqluHB347sI-xiXGh_f00dlC96B53PdUEddcU";
+// ═══════════════════════════════════════════════════════════════════════════
+// CROSS-USER SCORE SYNC (optional — two approaches)
+// ═══════════════════════════════════════════════════════════════════════════
+// OPTION A (easiest, no setup): Just update the Google Sheet directly from
+// your phone. Every user taps Sync and gets the update. Leave both blank below.
+//
+// OPTION B (automatic background sync): Use JSONBin.io (free, no credit card).
+//   1. Go to https://jsonbin.io and click "Sign Up" — email only, no CC required
+//   2. Go to "API Keys" page, copy your X-Master-Key
+//   3. Go to "Bins" page, click "Create Bin", paste {} as content, click Create
+//   4. Copy the Bin ID from the URL (the long string after /bins/)
+//   5. Paste both below and redeploy
+// Free tier = 10,000 requests/month (plenty for a weekend tournament).
+const JSONBIN_ID="69d2b56faaba882197c93614";
+const JSONBIN_KEY="$2a$10$Z4UN2LQBZuOJg52xDsqDGuXbqQkKxMXZb84TzaXZ7EQ5jjZLyWeBK";
+const SHARED_SYNC_MS=30000; // poll every 30s when visible
+// ═══════════════════════════════════════════════════════════════════════════
 const GIDS={E:"666511180",F:"1856816085",G:"1624359914",H:"1260938099"};
 const POOLS={
 E:{name:"Pool E",teams:[{id:"E1",name:"Central Alberta Kings",city:"Red Deer"},{id:"E2",name:"Fraser Valley VC",city:"Langley"},{id:"E3",name:"Junior Bisons VC",city:"Winnipeg"},{id:"E4",name:"Lethbridge VC",city:"Lethbridge"}],games:[{id:"e1",time:"Fri 2:45",court:"East",home:"E1",away:"E3"},{id:"e2",time:"Fri 4:00",court:"West",home:"E2",away:"E4"},{id:"e3",time:"Sat 8:30",court:"East",home:"E1",away:"E4"},{id:"e4",time:"Sat 9:45",court:"East",home:"E2",away:"E3"},{id:"e5",time:"Sat 12:15",court:"Center",home:"E1",away:"E2"},{id:"e6",time:"Sat 12:15",court:"Stanley",home:"E3",away:"E4"}]},
@@ -331,7 +348,7 @@ const themes={
 };
 
 const SK="apex-v13";
-const APP_VERSION="2026.04.05.10";
+const APP_VERSION="2026.04.05.13";
 
 // Cache-busting reload - works on iOS/Android homescreen apps
 function hardReload(){
@@ -384,11 +401,42 @@ function svP(p){try{localStorage.setItem(SK+"_p",JSON.stringify(p))}catch(e){}}
 function ldQFT(){try{return JSON.parse(localStorage.getItem(SK+"_qft"))||{}}catch(e){return{}}}
 function svQFT(q){try{localStorage.setItem(SK+"_qft",JSON.stringify(q))}catch(e){}}
 
+// Shared storage via JSONBin.io - only manual score entries (pool scores from sheet override)
+const SHARED_ENABLED=()=>JSONBIN_ID&&JSONBIN_KEY;
+async function sharedGet(){
+  if(!SHARED_ENABLED())return null;
+  try{
+    const r=await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`,{
+      headers:{"X-Master-Key":JSONBIN_KEY,"X-Bin-Meta":"false"},
+      cache:"no-store"
+    });
+    if(!r.ok)return null;
+    const data=await r.json();
+    return data?.record||null;
+  }catch(e){return null}
+}
+async function sharedPut(data){
+  if(!SHARED_ENABLED())return false;
+  try{
+    const r=await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`,{
+      method:"PUT",
+      body:JSON.stringify(data||{}),
+      headers:{"Content-Type":"application/json","X-Master-Key":JSONBIN_KEY}
+    });
+    return r.ok;
+  }catch(e){return false}
+}
+
 function SI({sets,onChange,th}){
   const add=()=>onChange([...sets,{home:"",away:""}]),rm=()=>onChange(sets.slice(0,-1));
-  const up=(i,side,val)=>{const v=val===""?"":Math.max(0,parseInt(val)||0);const n=[...sets];n[i]={...n[i],[side]:v};onChange(n)};
-  const iSt={width:42,padding:"5px 2px",textAlign:"center",background:th.inputBg,border:"1px solid "+th.inputBorder,borderRadius:5,color:th.text,fontSize:"inherit",fontFamily:"monospace",outline:"none"};
-  return(<div style={{display:"flex",flexDirection:"column",gap:4}}>{sets.map((s,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:"0.75em",color:th.textMuted,width:22,fontFamily:"monospace"}}>S{i+1}</span><input type="number" min="0" value={s.home===""?"":s.home} onChange={e=>up(i,"home",e.target.value)} style={iSt} placeholder="0"/><span style={{color:th.textDark,fontSize:"0.75em"}}>–</span><input type="number" min="0" value={s.away===""?"":s.away} onChange={e=>up(i,"away",e.target.value)} style={iSt} placeholder="0"/></div>))}<div style={{display:"flex",gap:4}}><button onClick={add} style={{padding:"2px 8px",fontSize:"0.75em",background:th.greenBg,color:th.green,border:"1px solid "+th.inputBorder,borderRadius:4,cursor:"pointer",fontFamily:"monospace"}}>+ Set</button>{sets.length>0&&<button onClick={rm} style={{padding:"2px 8px",fontSize:"0.75em",background:th.redBg,color:th.red,border:"1px solid "+th.inputBorder,borderRadius:4,cursor:"pointer",fontFamily:"monospace"}}>−</button>}</div></div>);
+  const up=(i,side,val)=>{
+    // Keep only digits, cap at 2 chars, allow empty
+    const cleaned=String(val||"").replace(/\D/g,"").slice(0,2);
+    const v=cleaned===""?"":parseInt(cleaned);
+    const n=[...sets];n[i]={...n[i],[side]:v};onChange(n);
+  };
+  const iSt={width:50,padding:"8px 4px",textAlign:"center",background:th.inputBg,border:"1px solid "+th.inputBorder,borderRadius:5,color:th.text,fontSize:"1em",fontFamily:"monospace",fontWeight:700,outline:"none"};
+  return(<div style={{display:"flex",flexDirection:"column",gap:4}}>{sets.map((s,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:4}}><span style={{fontSize:"0.75em",color:th.textMuted,width:22,fontFamily:"monospace"}}>S{i+1}</span><input inputMode="numeric" pattern="[0-9]*" maxLength="2" value={s.home===""?"":s.home} onChange={e=>up(i,"home",e.target.value)} style={iSt} placeholder="0"/><span style={{color:th.textDark,fontSize:"0.75em"}}>–</span><input inputMode="numeric" pattern="[0-9]*" maxLength="2" value={s.away===""?"":s.away} onChange={e=>up(i,"away",e.target.value)} style={iSt} placeholder="0"/></div>))}<div style={{display:"flex",gap:4}}><button onClick={add} style={{padding:"4px 10px",fontSize:"0.75em",background:th.greenBg,color:th.green,border:"1px solid "+th.inputBorder,borderRadius:4,cursor:"pointer",fontFamily:"monospace"}}>+ Set</button>{sets.length>0&&<button onClick={rm} style={{padding:"4px 10px",fontSize:"0.75em",background:th.redBg,color:th.red,border:"1px solid "+th.inputBorder,borderRadius:4,cursor:"pointer",fontFamily:"monospace"}}>−</button>}</div></div>);
 }
 
 function App(){
@@ -421,7 +469,41 @@ function App(){
   const toggleSettings=()=>{setShowSettings(!showSettings);setShowTeamPicker(false)};
   const toggleTeamPicker=()=>{setShowTeamPicker(!showTeamPicker);setShowSettings(false)};
 
-  const s=n=>{setSc(n);svS(n)};
+  const s=n=>{setSc(n);svS(n);if(SHARED_ENABLED())sharedPut(n)};
+
+  // Cross-user sync: pull shared scores on mount + poll while visible
+  useEffect(()=>{
+    if(!SHARED_ENABLED())return;
+    let timer=null,alive=true;
+    const pull=async()=>{
+      const remote=await sharedGet();
+      if(!remote||!alive)return;
+      setSc(local=>{
+        // Merge: for each game in remote, use it if local doesn't have it OR local value matches remote.
+        // Pool games from spreadsheet sync always override (they come via doF, which wins on next sync).
+        let changed=false;
+        const merged={...local};
+        for(const[k,v]of Object.entries(remote)){
+          if(!v?.sets?.length)continue;
+          const localStr=JSON.stringify(local[k]||"");
+          const remoteStr=JSON.stringify(v);
+          if(localStr!==remoteStr){merged[k]=v;changed=true}
+        }
+        if(changed)svS(merged);
+        return changed?merged:local;
+      });
+    };
+    pull();
+    const startPoll=()=>{
+      if(timer)return;
+      timer=setInterval(()=>{if(document.visibilityState==="visible")pull()},SHARED_SYNC_MS);
+    };
+    const stopPoll=()=>{if(timer){clearInterval(timer);timer=null}};
+    startPoll();
+    const onVis=()=>{if(document.visibilityState==="visible"){pull();startPoll()}else stopPoll()};
+    document.addEventListener("visibilitychange",onVis);
+    return()=>{alive=false;stopPoll();document.removeEventListener("visibilitychange",onVis)};
+  },[]);
 
   async function doF(){setFs("loading");setFm("Syncing...");const logs=[],ap={};let tot=0,newQfT={};
     for(const pk of["E","F","G","H"]){logs.push("Pool "+pk+":");try{const{rows}=await fetchPool(pk);logs.push("  "+rows.length+" rows");const p=parseMatrix(pk,rows,logs);Object.assign(ap,p);tot+=Object.keys(p).length}catch(e){logs.push("  ERR: "+e.message)}}
@@ -1034,6 +1116,83 @@ function App(){
 
       {/* PLAYOFFS */}
       {tab==="playoffs"&&<div>
+        {/* VISUAL BRACKET TREE */}
+        {(()=>{
+          const Mini=({game,isQf,color})=>{
+            const tA=isQf?getQFTeam(game.id,"home"):resolveBracketTeam(game.homeFrom);
+            const tB=isQf?getQFTeam(game.id,"away"):resolveBracketTeam(game.awayFrom);
+            const r=getGameResult(game.id);
+            const setsA=[],setsB=[];
+            if(r){const sets=sc[game.id].sets;sets.forEach(x=>{setsA.push(x.home);setsB.push(x.away)})}
+            const aWon=r?.winner==="home";
+            const bWon=r?.winner==="away";
+            const isMe=tA.id===homeTeam||tB.id===homeTeam;
+            return(<div style={{border:"1px solid "+(isMe?color:th.border),borderRadius:4,background:isMe?color+"22":th.card,fontSize:"0.62em",padding:3,minHeight:42,display:"flex",flexDirection:"column",justifyContent:"center"}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:4,alignItems:"center",padding:"1px 0"}}>
+                <span style={{fontWeight:aWon?800:500,color:aWon?color:tA.ok?th.text:th.textMuted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,fontSize:"0.95em"}}>{tA.name}</span>
+                {r&&<span style={{fontFamily:"monospace",color:aWon?color:th.textMuted,fontWeight:aWon?800:500,fontSize:"0.9em"}}>{setsA.join(",")}</span>}
+              </div>
+              <div style={{height:1,background:th.border,margin:"2px 0"}}/>
+              <div style={{display:"flex",justifyContent:"space-between",gap:4,alignItems:"center",padding:"1px 0"}}>
+                <span style={{fontWeight:bWon?800:500,color:bWon?color:tB.ok?th.text:th.textMuted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,fontSize:"0.95em"}}>{tB.name}</span>
+                {r&&<span style={{fontFamily:"monospace",color:bWon?color:th.textMuted,fontWeight:bWon?800:500,fontSize:"0.9em"}}>{setsB.join(",")}</span>}
+              </div>
+            </div>);
+          };
+          const Tree=({tier})=>{
+            const qfs=tier===1?T1Q:T2Q;
+            const rounds=tier===1?ST1:ST2;
+            const color=tier===1?th.green:th.accent;
+            return(<div style={{marginBottom:14,background:th.card,border:"1px solid "+th.border,borderRadius:8,padding:"10px 8px"}}>
+              <div style={{fontSize:"0.75em",color:color,fontFamily:"monospace",fontWeight:800,letterSpacing:1,marginBottom:8,textAlign:"center"}}>{tier===1?"TIER 1 CHAMPIONSHIP TREE":"TIER 2 CHAMPIONSHIP TREE"}</div>
+              {/* Header */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4,fontSize:"0.52em",color:th.textDark,fontFamily:"monospace",fontWeight:700,letterSpacing:1,marginBottom:4,textAlign:"center"}}>
+                <div>QUARTERS</div><div>SEMIS</div><div>FINAL</div>
+              </div>
+              {/* Tree body: 4 QFs, 2 semis centered, 1 gold centered */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4,alignItems:"stretch"}}>
+                {/* QF column */}
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {qfs.map(q=><Mini key={q.id} game={q} isQf color={color}/>)}
+                </div>
+                {/* Semi column - centered between each pair of QFs */}
+                <div style={{display:"flex",flexDirection:"column",justifyContent:"space-around",gap:6}}>
+                  <Mini game={rounds[2]} color={color}/>
+                  <Mini game={rounds[3]} color={color}/>
+                </div>
+                {/* Final column - Gold on top, Bronze below */}
+                <div style={{display:"flex",flexDirection:"column",justifyContent:"space-around",gap:6}}>
+                  <div>
+                    <div style={{fontSize:"0.55em",color:color,fontFamily:"monospace",fontWeight:800,textAlign:"center",marginBottom:2}}>🏆 GOLD</div>
+                    <Mini game={rounds[7]} color={color}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:"0.55em",color:"#cd7f32",fontFamily:"monospace",fontWeight:800,textAlign:"center",marginBottom:2}}>🥉 BRONZE</div>
+                    <Mini game={rounds[6]} color={color}/>
+                  </div>
+                </div>
+              </div>
+              {/* Placement tree: 5th/6th and 7th/8th */}
+              <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid "+th.border}}>
+                <div style={{fontSize:"0.55em",color:th.textDark,fontFamily:"monospace",fontWeight:700,letterSpacing:1,marginBottom:6,textAlign:"center"}}>PLACEMENT ({tier===1?"5TH-8TH":"13TH-16TH"})</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+                  <div>
+                    <div style={{fontSize:"0.52em",color:th.textMuted,textAlign:"center",marginBottom:2,fontFamily:"monospace",fontWeight:700}}>{tier===1?"5TH / 6TH":"13TH / 14TH"}</div>
+                    <Mini game={rounds[4]} color={color}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:"0.52em",color:th.textMuted,textAlign:"center",marginBottom:2,fontFamily:"monospace",fontWeight:700}}>{tier===1?"7TH / 8TH":"15TH / 16TH"}</div>
+                    <Mini game={rounds[5]} color={color}/>
+                  </div>
+                </div>
+              </div>
+            </div>);
+          };
+          return(<>
+            <Tree tier={1}/>
+            <Tree tier={2}/>
+          </>);
+        })()}
         {/* FINAL STANDINGS - only shows ranks that are determined */}
         {(()=>{
           const placements=getFinalPlacements();
