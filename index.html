@@ -88,7 +88,7 @@ function parseMatrix(pk,rows,logs){
 }
 
 // --- STANDINGS ---
-function calcSt(pk,sc){const pool=POOLS[pk],st={};pool.teams.forEach(t=>{st[t.id]={id:t.id,name:t.name,w:0,l:0,sW:0,sL:0,pW:0,pL:0}});pool.games.forEach(g=>{const s=sc[g.id];if(!s?.sets?.length)return;let hW=0,aW=0;s.sets.forEach(set=>{const h=typeof set.home==="number"?set.home:0,a=typeof set.away==="number"?set.away:0;if(h>a)hW++;else if(a>h)aW++;if(st[g.home]){st[g.home].pW+=h;st[g.home].pL+=a}if(st[g.away]){st[g.away].pW+=a;st[g.away].pL+=h}});if(st[g.home]){st[g.home].sW+=hW;st[g.home].sL+=aW}if(st[g.away]){st[g.away].sW+=aW;st[g.away].sL+=hW}if(hW>aW){if(st[g.home])st[g.home].w++;if(st[g.away])st[g.away].l++}else if(aW>hW){if(st[g.away])st[g.away].w++;if(st[g.home])st[g.home].l++}});return Object.values(st).sort((a,b)=>b.w-a.w||(b.sW-b.sL)-(a.sW-a.sL)||(b.pW-b.pL)-(a.pW-a.pL))}
+function calcSt(pk,sc){const pool=POOLS[pk],st={};pool.teams.forEach(t=>{st[t.id]={id:t.id,name:t.name,w:0,l:0,sW:0,sL:0,pW:0,pL:0}});pool.games.forEach(g=>{const s=sc[g.id];if(!s?.sets?.length)return;let hW=0,aW=0;s.sets.forEach(set=>{const h=typeof set.home==="number"?set.home:0,a=typeof set.away==="number"?set.away:0;if(h>a)hW++;else if(a>h)aW++;if(st[g.home]){st[g.home].pW+=h;st[g.home].pL+=a}if(st[g.away]){st[g.away].pW+=a;st[g.away].pL+=h}});if(st[g.home]){st[g.home].sW+=hW;st[g.home].sL+=aW}if(st[g.away]){st[g.away].sW+=aW;st[g.away].sL+=hW}if(hW>aW){if(st[g.home])st[g.home].w++;if(st[g.away])st[g.away].l++}else if(aW>hW){if(st[g.away])st[g.away].w++;if(st[g.home])st[g.home].l++}});return Object.values(st).sort((a,b)=>{const aMP=a.w*2+a.l,bMP=b.w*2+b.l;if(bMP!==aMP)return bMP-aMP;const sr=a.sW*b.sL-b.sW*a.sL;if(sr!==0)return sr>0?-1:1;const pr=a.pW*b.pL-b.pW*a.pL;if(pr!==0)return pr>0?-1:1;return 0})}
 function pD(pk,sc){return POOLS[pk].games.every(g=>sc[g.id]?.sets?.length>0&&sc[g.id].sets.every(s=>typeof s.home==="number"&&typeof s.away==="number"))}
 function pC(pk,sc){return POOLS[pk].games.filter(g=>sc[g.id]?.sets?.length>0).length}
 
@@ -273,11 +273,65 @@ function App(){
     return(<div style={{background:has?th.cardHi:th.card,border:"1px solid "+(isHome?th.accent+"44":th.border),borderRadius:8,padding:12,marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:"0.75em",color:isHome?th.accent:th.textMuted,fontFamily:"monospace",fontWeight:700}}>{game.home} vs {game.away}</span><div style={{display:"flex",gap:6,alignItems:"center"}}>{has&&<span style={{fontSize:"0.6em",color:th.green}}>✓</span>}<span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{game.time} · {game.court}</span></div></div><div style={{display:"flex",alignItems:"flex-start",gap:8}}><div style={{flex:1,minWidth:0}}><div style={{fontSize:"0.85em",fontWeight:game.home===homeTeam?800:500,color:game.home===homeTeam?th.accent:th.text}}>{h?.name}</div></div><SI sets={sc[game.id]?.sets||[]} onChange={x=>up(game.id,x)} th={th}/><div style={{flex:1,textAlign:"right",minWidth:0}}><div style={{fontSize:"0.85em",fontWeight:game.away===homeTeam?800:500,color:game.away===homeTeam?th.accent:th.text}}>{a?.name}</div></div></div></div>)};
 
   const STbl=({pk})=>{const st=aS[pk],dn=pD(pk,sc),ct=pC(pk,sc);
-    return(<div style={{background:th.card,borderRadius:8,border:"1px solid "+th.border,overflow:"hidden",marginBottom:12}}><div style={{padding:"8px 10px",fontSize:"0.8em",fontWeight:700,color:th.textDim,background:th.syncBg,fontFamily:"monospace",display:"flex",justifyContent:"space-between"}}><span>{POOLS[pk].name}</span><span style={{color:dn?th.green:th.textMuted}}>{dn?"✓":ct+"/6"}</span></div><div style={{display:"grid",gridTemplateColumns:"24px 1fr 28px 28px 34px 34px 40px",padding:"6px 10px",fontSize:"0.58em",color:th.textDark,fontFamily:"monospace",borderBottom:"1px solid "+th.border,lineHeight:1.2}}><div style={{alignSelf:"end"}}>#</div><div style={{alignSelf:"end"}}>TEAM</div><div style={{textAlign:"center",alignSelf:"end"}}>W</div><div style={{textAlign:"center",alignSelf:"end"}}>L</div><div style={{textAlign:"center"}}>SETS<br/>WON</div><div style={{textAlign:"center"}}>SETS<br/>LOST</div><div style={{textAlign:"center"}}>PTS<br/>±</div></div>{st.map((t,i)=>{
-      const pd=t.pW-t.pL;
-      return(<div key={t.id} style={{display:"grid",gridTemplateColumns:"24px 1fr 28px 28px 34px 34px 40px",padding:"8px 10px",borderBottom:i<3?"1px solid "+th.border:"none",background:t.id===homeTeam?th.accentBg:i<2?th.greenBg:"transparent",alignItems:"center"}}><div style={{fontWeight:800,fontFamily:"monospace",fontSize:"1em",color:i===0?th.accent:i===1?th.textDim:th.textDark}}>{i+1}</div><div><div style={{fontSize:"0.85em",fontWeight:t.id===homeTeam?800:500,color:t.id===homeTeam?th.accent:th.text}}>{t.name}</div><div style={{fontSize:"0.62em",color:th.textDark}}>{t.id}{dn?(i<2?" → Tier 1":" → Tier 2"):""}</div></div><div style={{textAlign:"center",fontFamily:"monospace",fontSize:"1em",fontWeight:700,color:th.green}}>{t.w}</div><div style={{textAlign:"center",fontFamily:"monospace",fontSize:"1em",fontWeight:700,color:t.l>0?th.red:th.textDark}}>{t.l}</div><div style={{textAlign:"center",fontFamily:"monospace",fontSize:"0.85em",fontWeight:600,color:t.sW>0?th.green:th.textDark}}>{t.sW}</div><div style={{textAlign:"center",fontFamily:"monospace",fontSize:"0.85em",fontWeight:600,color:t.sL>0?th.red:th.textDark}}>{t.sL}</div><div style={{textAlign:"center",fontFamily:"monospace",fontSize:"0.78em",fontWeight:700,color:pd>0?th.green:pd<0?th.red:th.textMuted}}>{pd>0?"+":""}{pd}</div></div>)
-    })}
-    <div style={{padding:"8px 10px",fontSize:"0.58em",color:th.textDark,fontFamily:"monospace",background:th.syncBg,lineHeight:1.5}}>Tiebreakers: 1) Match W → 2) Set diff → 3) Point diff</div>
+    const thS={padding:"6px 6px",fontSize:"0.6em",color:th.textDark,fontFamily:"monospace",fontWeight:500,textAlign:"center",borderBottom:"1px solid "+th.border,whiteSpace:"nowrap"};
+    const thG={padding:"6px 6px 2px",fontSize:"0.68em",color:th.textDim,fontFamily:"monospace",fontWeight:700,textAlign:"center",whiteSpace:"nowrap",letterSpacing:0.5};
+    const tdS={padding:"10px 6px",fontSize:"0.82em",fontFamily:"monospace",fontWeight:700,textAlign:"center",whiteSpace:"nowrap"};
+    return(<div style={{background:th.card,borderRadius:8,border:"1px solid "+th.border,overflow:"hidden",marginBottom:12}}>
+      <div style={{padding:"8px 10px",fontSize:"0.85em",fontWeight:700,color:th.textDim,background:th.syncBg,fontFamily:"monospace",display:"flex",justifyContent:"space-between"}}><span>{POOLS[pk].name}</span><span style={{color:dn?th.green:th.textMuted}}>{dn?"✓":ct+"/6"}</span></div>
+      <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+        <table style={{borderCollapse:"collapse",width:"100%",minWidth:520}}>
+          <thead>
+            <tr>
+              <th colSpan={2} style={{...thG,borderBottom:"1px solid "+th.border}}></th>
+              <th colSpan={4} style={{...thG,borderLeft:"1px solid "+th.border,color:th.accent}}>Matches</th>
+              <th colSpan={3} style={{...thG,borderLeft:"1px solid "+th.border,color:th.green}}>Sets</th>
+              <th colSpan={3} style={{...thG,borderLeft:"1px solid "+th.border,color:th.textDim}}>Points</th>
+            </tr>
+            <tr>
+              <th style={{...thS,width:24}}>#</th>
+              <th style={{...thS,textAlign:"left",paddingLeft:10,minWidth:90}}>Team</th>
+              <th style={{...thS,borderLeft:"1px solid "+th.border}}>Total</th>
+              <th style={thS}>Won</th>
+              <th style={thS}>Lost</th>
+              <th style={thS}>Pts</th>
+              <th style={{...thS,borderLeft:"1px solid "+th.border}}>Won</th>
+              <th style={thS}>Lost</th>
+              <th style={thS}>Set<br/>Ratio</th>
+              <th style={{...thS,borderLeft:"1px solid "+th.border}}>Won</th>
+              <th style={thS}>Lost</th>
+              <th style={thS}>Point Ratio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {st.map((t,i)=>{
+              const total=t.w+t.l;
+              const matchPts=t.w*2+t.l*1;
+              const setRatio=t.sL>0?(t.sW/t.sL).toFixed(3):t.sW>0?"∞":"0.000";
+              const ptRatio=t.pL>0?(t.pW/t.pL).toFixed(4):t.pW>0?"∞":"0.0000";
+              const isMe=t.id===homeTeam;
+              const rowBg=isMe?th.accentBg:i<2?th.greenBg:"transparent";
+              return(<tr key={t.id} style={{background:rowBg,borderBottom:i<3?"1px solid "+th.border:"none"}}>
+                <td style={{...tdS,fontSize:"0.95em",color:i===0?th.accent:i===1?th.textDim:th.textDark,fontWeight:800}}>{i+1}</td>
+                <td style={{padding:"10px 6px 10px 10px",textAlign:"left",whiteSpace:"nowrap"}}>
+                  <div style={{fontSize:"0.82em",fontWeight:isMe?800:600,color:isMe?th.accent:th.text}}>{t.name}</div>
+                  <div style={{fontSize:"0.6em",color:th.textDark,fontFamily:"monospace"}}>{t.id}{dn?(i<2?" → T1":" → T2"):""}</div>
+                </td>
+                <td style={{...tdS,borderLeft:"1px solid "+th.border,color:th.text}}>{total}</td>
+                <td style={{...tdS,color:th.green}}>{t.w}</td>
+                <td style={{...tdS,color:t.l>0?th.red:th.textDark}}>{t.l}</td>
+                <td style={{...tdS,color:th.accent}}>{matchPts}</td>
+                <td style={{...tdS,borderLeft:"1px solid "+th.border,color:th.green}}>{t.sW}</td>
+                <td style={{...tdS,color:t.sL>0?th.red:th.textDark}}>{t.sL}</td>
+                <td style={{...tdS,fontSize:"0.75em",color:th.text}}>{setRatio}</td>
+                <td style={{...tdS,borderLeft:"1px solid "+th.border,fontSize:"0.78em",color:th.green}}>{t.pW}</td>
+                <td style={{...tdS,fontSize:"0.78em",color:t.pL>0?th.red:th.textDark}}>{t.pL}</td>
+                <td style={{...tdS,fontSize:"0.72em",color:th.text}}>{ptRatio}</td>
+              </tr>)
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div style={{padding:"8px 10px",fontSize:"0.62em",color:th.textDark,fontFamily:"monospace",background:th.syncBg,lineHeight:1.5}}>Tiebreakers: 1) Match Pts → 2) Set Ratio → 3) Point Ratio · Swipe table to scroll</div>
     </div>)};
 
   const QFC=({qf})=>{const tA=resQF(qf.seeds[0]),tB=resQF(qf.seeds[1]),ap=tA.id===homeTeam||tB.id===homeTeam;return(<div style={{background:ap?th.accentBg:th.card,border:"1px solid "+(ap?th.accent+"88":th.border),borderRadius:8,padding:10,marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:"0.75em",color:ap?th.accent:th.textMuted,fontFamily:"monospace",fontWeight:700}}>{qf.label}</span><span style={{fontSize:"0.75em",color:th.textDark,fontFamily:"monospace"}}>{qf.time} · {qf.court}</span></div><div style={{display:"flex",alignItems:"flex-start",gap:8}}><div style={{flex:1}}><div style={{fontSize:"0.85em",fontWeight:tA.id===homeTeam?800:500,color:tA.id===homeTeam?th.accent:tA.ok?th.text:th.textMuted}}>{tA.name}</div></div><SI sets={sc[qf.id]?.sets||[]} onChange={x=>up(qf.id,x)} th={th}/><div style={{flex:1,textAlign:"right"}}><div style={{fontSize:"0.85em",fontWeight:tB.id===homeTeam?800:500,color:tB.id===homeTeam?th.accent:tB.ok?th.text:th.textMuted}}>{tB.name}</div></div></div></div>)};
@@ -433,9 +487,25 @@ function App(){
       {sd&&<div style={{maxHeight:200,overflow:"auto",background:mode==="dark"?"#000":"#f0f0f0",borderRadius:4,padding:8,marginTop:4,fontSize:"0.6em",color:th.textMuted,fontFamily:"monospace",whiteSpace:"pre-wrap"}}>{dl.map((l,i)=><div key={i} style={{color:l.includes("→")?th.green:l.includes("ERR")?th.red:l.startsWith("Pool")?th.accent:th.textMuted}}>{l}</div>)}</div>}
     </div>
 
-    {/* Pool status */}
-    <div style={{display:"flex",justifyContent:"space-around",background:th.card,borderBottom:"1px solid "+th.border,padding:"10px 0"}}>
-      {["E","F","G","H"].map(k=>(<div key={k} style={{textAlign:"center"}}><div style={{fontSize:"1.1em",fontWeight:800,fontFamily:"monospace",color:k===homePk?th.accent:pD(k,sc)?th.green:pC(k,sc)>0?th.textDim:th.textDark}}>{pD(k,sc)?"✓":pC(k,sc)+"/6"}</div><div style={{fontSize:"0.6em",color:th.textMuted,letterSpacing:1}}>POOL {k}</div></div>))}
+    {/* Playoffs status */}
+    <div style={{background:th.card,borderBottom:"1px solid "+th.border}}>
+      <div style={{padding:"10px 14px 6px",fontSize:"0.95em",fontWeight:800,color:th.text,fontFamily:"'Space Grotesk',sans-serif",letterSpacing:2,textAlign:"center"}}>PLAYOFFS</div>
+      {(()=>{
+        const t1Games=[...T1Q,...ST1];
+        const t2Games=[...T2Q,...ST2];
+        const t1Done=t1Games.filter(g=>sc[g.id]?.sets?.length>0).length;
+        const t2Done=t2Games.filter(g=>sc[g.id]?.sets?.length>0).length;
+        return(<div style={{display:"flex",borderTop:"1px solid "+th.border}}>
+          <div onClick={()=>setTab("playoffs")} style={{flex:1,textAlign:"center",padding:"10px 8px",cursor:"pointer",borderRight:"1px solid "+th.border}}>
+            <div style={{fontSize:"0.65em",color:th.green,fontFamily:"monospace",fontWeight:700,letterSpacing:1,marginBottom:2}}>TIER 1</div>
+            <div style={{fontSize:"1em",fontWeight:800,fontFamily:"monospace",color:t1Done===12?th.green:t1Done>0?th.text:th.textDark}}>{t1Done===12?"✓ Complete":t1Done+"/12"}</div>
+          </div>
+          <div onClick={()=>setTab("playoffs")} style={{flex:1,textAlign:"center",padding:"10px 8px",cursor:"pointer"}}>
+            <div style={{fontSize:"0.65em",color:th.accent,fontFamily:"monospace",fontWeight:700,letterSpacing:1,marginBottom:2}}>TIER 2</div>
+            <div style={{fontSize:"1em",fontWeight:800,fontFamily:"monospace",color:t2Done===12?th.green:t2Done>0?th.text:th.textDark}}>{t2Done===12?"✓ Complete":t2Done+"/12"}</div>
+          </div>
+        </div>);
+      })()}
     </div>
 
     {/* Tabs */}
@@ -444,14 +514,57 @@ function App(){
     </div>
 
     <div style={{padding:"12px 14px 40px"}}>
-      {/* HOME TAB */}
-      {tab==="home"&&<div>
-        <div style={{fontSize:"0.78em",color:th.textDim,fontWeight:700,marginBottom:10,fontFamily:"monospace"}}>{homeT?.name?.toUpperCase()} GAMES</div>
-        {POOLS[homePk].games.filter(g=>g.home===homeTeam||g.away===homeTeam).map(g=><GC key={g.id} game={g}/>)}
-        <div style={{fontSize:"0.78em",color:th.textMuted,fontWeight:700,marginTop:14,marginBottom:8,fontFamily:"monospace"}}>OTHER POOL {homePk}</div>
-        {POOLS[homePk].games.filter(g=>g.home!==homeTeam&&g.away!==homeTeam).map(g=><GC key={g.id} game={g}/>)}
-        <STbl pk={homePk}/>
-      </div>}
+      {/* HOME TAB - Playoff focus */}
+      {tab==="home"&&(()=>{
+        // Find team's QF game
+        const qfGame=[...T1Q,...T2Q].find(q=>{
+          const tA=resQF(q.seeds[0]),tB=resQF(q.seeds[1]);
+          return tA.id===homeTeam||tB.id===homeTeam;
+        });
+        // Find team's round 2 game (Semi or Con-Semi)
+        let r2Game=null,r3Game=null;
+        if(qfGame){
+          const isT1=qfGame.id.startsWith("z");
+          const r2Games=isT1?ST1.slice(0,4):ST2.slice(0,4);
+          for(const r2 of r2Games){
+            const tA=resolveBracketTeam(r2.homeFrom),tB=resolveBracketTeam(r2.awayFrom);
+            if(tA.id===homeTeam||tB.id===homeTeam){r2Game=r2;break}
+          }
+          if(r2Game){
+            const r3Games=isT1?ST1.slice(4):ST2.slice(4);
+            for(const r3 of r3Games){
+              const tA=resolveBracketTeam(r3.homeFrom),tB=resolveBracketTeam(r3.awayFrom);
+              if(tA.id===homeTeam||tB.id===homeTeam){r3Game=r3;break}
+            }
+          }
+        }
+        const bracketColor=qfGame?.id.startsWith("z")?th.green:th.accent;
+        const tierLabel=qfGame?.id.startsWith("z")?"TIER 1 — Z BRACKET":"TIER 2 — Y BRACKET";
+        return(<div>
+          {qfGame?(<>
+            <div style={{background:th.card,border:"1px solid "+th.border,borderRadius:10,padding:12,marginBottom:12}}>
+              <div style={{fontSize:"0.7em",color:bracketColor,fontFamily:"monospace",fontWeight:700,letterSpacing:1.5,marginBottom:4}}>{tierLabel}</div>
+              <div style={{fontSize:"1.1em",fontWeight:800,color:th.text}}>{homeT?.name}'s Path</div>
+              <div style={{fontSize:"0.75em",color:th.textMuted,marginTop:2}}>Pool {homePk} #{homeRank} · {homeRec?.w}-{homeRec?.l} in pool play</div>
+            </div>
+            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8,letterSpacing:1}}>QUARTERFINAL</div>
+            <QFC qf={qfGame}/>
+            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:14,marginBottom:8,letterSpacing:1}}>{r2Game?.label?.includes("Con")?"CONSOLATION SEMI":"SEMI-FINAL"}</div>
+            {r2Game?<KO g={r2Game}/>:<div style={{fontSize:"0.75em",color:th.textDark,fontStyle:"italic",padding:10}}>Determined after QF</div>}
+            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:14,marginBottom:8,letterSpacing:1}}>FINAL PLACEMENT</div>
+            {r3Game?<KO g={r3Game}/>:<div style={{fontSize:"0.75em",color:th.textDark,fontStyle:"italic",padding:10}}>Determined after {r2Game?.label?.includes("Con")?"Con-Semi":"Semi"}</div>}
+          </>):(<div style={{padding:20,textAlign:"center",color:th.textMuted}}>
+            <div style={{fontSize:"1em",marginBottom:8}}>🏐</div>
+            <div style={{fontSize:"0.85em"}}>{homeT?.name}'s playoff slot not yet determined</div>
+            <div style={{fontSize:"0.75em",color:th.textDark,marginTop:6}}>Pool play needs to complete first</div>
+          </div>)}
+          <div style={{marginTop:20,paddingTop:14,borderTop:"1px solid "+th.border}}>
+            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8,letterSpacing:1}}>POOL {homePk} RESULTS</div>
+            {POOLS[homePk].games.filter(g=>g.home===homeTeam||g.away===homeTeam).map(g=><GC key={g.id} game={g}/>)}
+            <STbl pk={homePk}/>
+          </div>
+        </div>);
+      })()}
 
       {/* ALL POOLS */}
       {tab==="pools"&&<div>
