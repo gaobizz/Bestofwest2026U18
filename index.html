@@ -78,19 +78,19 @@ async function fetchPool(pk){const gid=GIDS[pk];const urls=[`https://docs.google
 const TEAM_ABBREV={
   "apex":"G1","apex vc":"G1",
   "fvvc":"E2","fraser valley":"E2","fraser valley vc":"E2",
-  "winman":"F1","winman vc":"F1",
+  "winman":"F1","winman vc":"F1","wvc":"F1",
   "navc":"F2","northern alberta":"F2","northern alberta vc":"F2",
   "cakvc":"E1","central alberta kings":"E1","central alberta":"E1",
-  "brandon":"G4","brandon vc":"G4",
-  "dinos":"H2","dinos vc":"H2",
-  "bisons":"E3","junior bisons":"E3","jr bisons":"E3",
-  "element":"F3","element vc":"F3",
-  "summit":"G3","summit vc":"G3",
-  "huskie":"H3","huskie vc":"H3","huskies":"H3",
-  "jr dinos":"G2","jr. dinos":"G2","junior dinos":"G2",
+  "brandon":"G4","brandon vc":"G4","bvc":"G4",
+  "dinos":"H2","dinos vc":"H2","dvc":"H2",
+  "bisons":"E3","junior bisons":"E3","jr bisons":"E3","bisons vc":"E3",
+  "element":"F3","element vc":"F3","evc":"F3",
+  "summit":"G3","summit vc":"G3","svc":"G3",
+  "huskie":"H3","huskie vc":"H3","huskies":"H3","hvc":"H3",
+  "jr dinos":"G2","jr. dinos":"G2","junior dinos":"G2","jrdvc":"G2",
   "204":"H4","204 vc":"H4",
-  "canwest":"F4","canada west":"F4","canada west vc":"F4",
-  "leth":"E4","lethbridge":"E4","lethbridge vc":"E4",
+  "canwest":"F4","canada west":"F4","canada west vc":"F4","cwvc":"F4","cwest":"F4",
+  "leth":"E4","lethbridge":"E4","lethbridge vc":"E4","lvc":"E4",
   "cascades":"H1","junior cascades":"H1","jr cascades":"H1"
 };
 
@@ -331,7 +331,7 @@ const themes={
 };
 
 const SK="apex-v13";
-const APP_VERSION="2026.04.05.9";
+const APP_VERSION="2026.04.05.10";
 
 // Cache-busting reload - works on iOS/Android homescreen apps
 function hardReload(){
