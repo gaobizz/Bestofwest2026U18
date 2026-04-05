@@ -494,22 +494,14 @@ function App(){
     {/* Playoffs status */}
     <div style={{background:th.card,borderBottom:"1px solid "+th.border}}>
       <div style={{padding:"10px 14px 6px",fontSize:"0.95em",fontWeight:800,color:th.text,fontFamily:"'Space Grotesk',sans-serif",letterSpacing:2,textAlign:"center"}}>PLAYOFFS</div>
-      {(()=>{
-        const t1Games=[...T1Q,...ST1];
-        const t2Games=[...T2Q,...ST2];
-        const t1Done=t1Games.filter(g=>sc[g.id]?.sets?.length>0).length;
-        const t2Done=t2Games.filter(g=>sc[g.id]?.sets?.length>0).length;
-        return(<div style={{display:"flex",borderTop:"1px solid "+th.border}}>
-          <div onClick={()=>setTab("playoffs")} style={{flex:1,textAlign:"center",padding:"10px 8px",cursor:"pointer",borderRight:"1px solid "+th.border}}>
-            <div style={{fontSize:"0.65em",color:th.green,fontFamily:"monospace",fontWeight:700,letterSpacing:1,marginBottom:2}}>TIER 1</div>
-            <div style={{fontSize:"1em",fontWeight:800,fontFamily:"monospace",color:t1Done===12?th.green:t1Done>0?th.text:th.textDark}}>{t1Done===12?"✓ Complete":t1Done+"/12"}</div>
-          </div>
-          <div onClick={()=>setTab("playoffs")} style={{flex:1,textAlign:"center",padding:"10px 8px",cursor:"pointer"}}>
-            <div style={{fontSize:"0.65em",color:th.accent,fontFamily:"monospace",fontWeight:700,letterSpacing:1,marginBottom:2}}>TIER 2</div>
-            <div style={{fontSize:"1em",fontWeight:800,fontFamily:"monospace",color:t2Done===12?th.green:t2Done>0?th.text:th.textDark}}>{t2Done===12?"✓ Complete":t2Done+"/12"}</div>
-          </div>
-        </div>);
-      })()}
+      <div style={{display:"flex",borderTop:"1px solid "+th.border}}>
+        <div onClick={()=>{setTab("playoffs");setTier1Open(true);setTier2Open(false)}} style={{flex:1,textAlign:"center",padding:"14px 8px",cursor:"pointer",borderRight:"1px solid "+th.border}}>
+          <div style={{fontSize:"0.85em",color:th.green,fontFamily:"monospace",fontWeight:800,letterSpacing:1}}>TIER 1 ›</div>
+        </div>
+        <div onClick={()=>{setTab("playoffs");setTier2Open(true);setTier1Open(false)}} style={{flex:1,textAlign:"center",padding:"14px 8px",cursor:"pointer"}}>
+          <div style={{fontSize:"0.85em",color:th.accent,fontFamily:"monospace",fontWeight:800,letterSpacing:1}}>TIER 2 ›</div>
+        </div>
+      </div>
     </div>
 
     {/* Tabs */}
