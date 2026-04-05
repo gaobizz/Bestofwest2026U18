@@ -41,8 +41,8 @@ const ALL_TEAM_IDS=Object.keys(AT);
 const T1Q=[{id:"z1",label:"Z1",time:"Sat 6:30",court:"East",seeds:["E1","F2"]},{id:"z2",label:"Z2",time:"Sat 6:30",court:"Center",seeds:["G2","H1"]},{id:"z3",label:"Z3",time:"Sat 6:30",court:"West",seeds:["G1","H2"]},{id:"z4",label:"Z4",time:"Sat 6:30",court:"Stanley",seeds:["F1","E2"]}];
 const T2Q=[{id:"y1",label:"Y1",time:"Sat 5:15",court:"East",seeds:["E3","F4"]},{id:"y2",label:"Y2",time:"Sat 5:15",court:"Center",seeds:["G4","H3"]},{id:"y3",label:"Y3",time:"Sat 5:15",court:"West",seeds:["G3","H4"]},{id:"y4",label:"Y4",time:"Sat 5:15",court:"Stanley",seeds:["F3","E4"]}];
 const ST1=[
-  {id:"z5",label:"Z5 Con Semi",time:"Sun 12:15",court:"East",homeFrom:{gid:"z1",r:"loser"},awayFrom:{gid:"z2",r:"loser"}},
-  {id:"z6",label:"Z6 Con Semi",time:"Sun 12:15",court:"Stanley",homeFrom:{gid:"z3",r:"loser"},awayFrom:{gid:"z4",r:"loser"}},
+  {id:"z5",label:"Z5 Placement Semi",time:"Sun 12:15",court:"East",homeFrom:{gid:"z1",r:"loser"},awayFrom:{gid:"z2",r:"loser"}},
+  {id:"z6",label:"Z6 Placement Semi",time:"Sun 12:15",court:"Stanley",homeFrom:{gid:"z3",r:"loser"},awayFrom:{gid:"z4",r:"loser"}},
   {id:"z7",label:"Z7 Semi",time:"Sun 12:15",court:"Center",homeFrom:{gid:"z1",r:"winner"},awayFrom:{gid:"z2",r:"winner"}},
   {id:"z8",label:"Z8 Semi",time:"Sun 12:15",court:"West",homeFrom:{gid:"z3",r:"winner"},awayFrom:{gid:"z4",r:"winner"}},
   {id:"z9",label:"Z9 5th",time:"Sun 5:15",court:"East",homeFrom:{gid:"z5",r:"winner"},awayFrom:{gid:"z6",r:"winner"}},
@@ -50,8 +50,8 @@ const ST1=[
   {id:"z11",label:"Z11 Bronze",time:"Sun 5:15",court:"West",homeFrom:{gid:"z7",r:"loser"},awayFrom:{gid:"z8",r:"loser"}},
   {id:"z12",label:"Z12 GOLD",time:"Sun 5:15",court:"Center",homeFrom:{gid:"z7",r:"winner"},awayFrom:{gid:"z8",r:"winner"}}];
 const ST2=[
-  {id:"y5",label:"Y5 Con Semi",time:"Sun 9:45",court:"East",homeFrom:{gid:"y1",r:"loser"},awayFrom:{gid:"y2",r:"loser"}},
-  {id:"y6",label:"Y6 Con Semi",time:"Sun 9:45",court:"Stanley",homeFrom:{gid:"y3",r:"loser"},awayFrom:{gid:"y4",r:"loser"}},
+  {id:"y5",label:"Y5 Placement Semi",time:"Sun 9:45",court:"East",homeFrom:{gid:"y1",r:"loser"},awayFrom:{gid:"y2",r:"loser"}},
+  {id:"y6",label:"Y6 Placement Semi",time:"Sun 9:45",court:"Stanley",homeFrom:{gid:"y3",r:"loser"},awayFrom:{gid:"y4",r:"loser"}},
   {id:"y7",label:"Y7 Semi",time:"Sun 9:45",court:"West",homeFrom:{gid:"y1",r:"winner"},awayFrom:{gid:"y2",r:"winner"}},
   {id:"y8",label:"Y8 Semi",time:"Sun 9:45",court:"Center",homeFrom:{gid:"y3",r:"winner"},awayFrom:{gid:"y4",r:"winner"}},
   {id:"y9",label:"Y9 13th",time:"Sun 2:45",court:"East",homeFrom:{gid:"y5",r:"winner"},awayFrom:{gid:"y6",r:"winner"}},
@@ -331,7 +331,7 @@ const themes={
 };
 
 const SK="apex-v13";
-const APP_VERSION="2026.04.05.7";
+const APP_VERSION="2026.04.05.9";
 
 // Cache-busting reload - works on iOS/Android homescreen apps
 function hardReload(){
@@ -345,19 +345,26 @@ if(location.search.includes("_r=")){
   history.replaceState(null,"",location.pathname);
 }
 
-// Auto-reload when returning to homescreen app after 5+ minutes
+// Auto-reload when returning to page. Mobile = aggressive (any return triggers reload),
+// Desktop = conservative (1min threshold to avoid jarring tab switches).
+const isMobile=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const reloadThresholdMs=isMobile?3*1000:60*1000; // 3s mobile, 60s desktop
 let lastActive=Date.now();
 document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState==="visible"){
     const elapsed=Date.now()-lastActive;
-    if(elapsed>5*60*1000){hardReload()}
+    if(elapsed>reloadThresholdMs){hardReload()}
     else{lastActive=Date.now()}
   }else{lastActive=Date.now()}
 });
 window.addEventListener("focus",()=>{
   const elapsed=Date.now()-lastActive;
-  if(elapsed>5*60*1000){hardReload()}
+  if(elapsed>reloadThresholdMs){hardReload()}
   lastActive=Date.now();
+});
+// iOS Safari back-forward cache: fires when page is restored from memory
+window.addEventListener("pageshow",e=>{
+  if(e.persisted)hardReload();
 });
 
 // Register service worker for network-first caching (if supported)
@@ -510,7 +517,7 @@ function App(){
       const tAway=resolveBracketTeam(later.awayFrom);
       const result=getGameResult(gid);
       if(!result){
-        const srcLabel=later.label.replace(/ Con Semi| Semi/,"").trim();
+        const srcLabel=later.label.replace(/ Placement Semi| Con Semi| Semi/,"").trim();
         return{name:(r==="winner"?"W ":"L ")+srcLabel,ok:false};
       }
       return r==="winner"?(result.winner==="home"?tHome:tAway):(result.winner==="home"?tAway:tHome);
@@ -535,6 +542,55 @@ function App(){
     }
     return results.sort((a,b)=>a.rank-b.rank);
   };
+
+  // Compute team's current possible rank range based on bracket progression.
+  // Returns {min,max,determined,emoji} or null if not yet in bracket.
+  const getCurrentRankRange=tid=>{
+    if(!tid)return null;
+    // Check if final placement is locked
+    const finals=getFinalPlacements();
+    const f=finals.find(p=>p.id===tid);
+    if(f)return{min:f.rank,max:f.rank,determined:true,emoji:f.rank===1?"🏆":f.rank===3?"🥉":""};
+    // Find QF game for team
+    let tier=null,myQF=null;
+    for(const q of T1Q){
+      const h=getQFTeam(q.id,"home"),a=getQFTeam(q.id,"away");
+      if(h.id===tid||a.id===tid){tier=1;myQF=q;break}
+    }
+    if(!myQF){
+      for(const q of T2Q){
+        const h=getQFTeam(q.id,"home"),a=getQFTeam(q.id,"away");
+        if(h.id===tid||a.id===tid){tier=2;myQF=q;break}
+      }
+    }
+    if(!tier)return null;
+    const off=tier===1?0:8;
+    const qfR=getGameResult(myQF.id);
+    if(!qfR)return{min:1+off,max:8+off,determined:false,emoji:""};
+    const qfH=getQFTeam(myQF.id,"home");
+    const wonQF=(qfR.winner==="home"?qfH.id:getQFTeam(myQF.id,"away").id)===tid;
+    // Find semi or con-semi
+    const rounds=tier===1?ST1:ST2;
+    let sG=null;
+    for(const s of rounds.slice(0,4)){
+      const h=resolveBracketTeam(s.homeFrom),a=resolveBracketTeam(s.awayFrom);
+      if(h.id===tid||a.id===tid){sG=s;break}
+    }
+    if(!sG)return null;
+    const sR=getGameResult(sG.id);
+    if(!sR){
+      if(wonQF)return{min:1+off,max:4+off,determined:false,emoji:"🏅"};
+      return{min:5+off,max:8+off,determined:false,emoji:""};
+    }
+    const sH=resolveBracketTeam(sG.homeFrom);
+    const wonS=(sR.winner==="home"?sH.id:resolveBracketTeam(sG.awayFrom).id)===tid;
+    if(wonQF&&wonS)return{min:1+off,max:2+off,determined:false,emoji:"🏆"};
+    if(wonQF&&!wonS)return{min:3+off,max:4+off,determined:false,emoji:"🥉"};
+    if(!wonQF&&wonS)return{min:5+off,max:6+off,determined:false,emoji:""};
+    return{min:7+off,max:8+off,determined:false,emoji:""};
+  };
+
+  const currentRank=useMemo(()=>getCurrentRankRange(homeTeam),[homeTeam,sc,qfT]);
 
   // Components
   const WINNER_STYLE={fontSize:"0.58em",fontWeight:800,color:th.green,marginTop:3,letterSpacing:1.5,fontFamily:"monospace"};
@@ -689,9 +745,15 @@ function App(){
         </div>
         <div onClick={toggleSettings} style={{background:"rgba(0,0,0,0.2)",border:"2px solid rgba(0,0,0,0.15)",borderRadius:8,width:44,height:44,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",WebkitTapHighlightColor:"rgba(0,0,0,0.1)"}}><span style={{fontSize:20,lineHeight:1,pointerEvents:"none",color:th.headerText}}>&#9881;</span></div>
       </div>
-      {/* Team selector */}
-      <div onClick={toggleTeamPicker} style={{marginTop:8,background:"rgba(0,0,0,0.2)",border:"1px solid rgba(0,0,0,0.15)",borderRadius:6,padding:"8px 12px",cursor:"pointer",color:th.headerText,fontWeight:700,fontSize:"0.85em",display:"inline-flex",alignItems:"center",gap:6,minHeight:40,position:"relative",zIndex:2,WebkitTapHighlightColor:"rgba(0,0,0,0.1)"}}>
-        <span style={{pointerEvents:"none"}}>🏐 {homeT?.name||"Select Team"} ▼</span>
+      {/* Team selector + Current Rank */}
+      <div style={{marginTop:8,display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,position:"relative",zIndex:2}}>
+        <div onClick={toggleTeamPicker} style={{flex:1,background:"rgba(0,0,0,0.2)",border:"1px solid rgba(0,0,0,0.15)",borderRadius:6,padding:"8px 12px",cursor:"pointer",color:th.headerText,fontWeight:700,fontSize:"0.85em",display:"flex",alignItems:"center",gap:6,minHeight:40,WebkitTapHighlightColor:"rgba(0,0,0,0.1)",minWidth:0}}>
+          <span style={{pointerEvents:"none",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>🏐 {homeT?.name||"Select Team"} ▼</span>
+        </div>
+        {currentRank&&<div style={{background:currentRank.determined?"rgba(0,0,0,0.35)":"rgba(0,0,0,0.2)",border:"1px solid rgba(0,0,0,0.2)",borderRadius:6,padding:"4px 10px",minHeight:40,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:60}}>
+          <div style={{fontSize:"0.5em",letterSpacing:1.5,color:"rgba(0,0,0,0.55)",fontWeight:700,fontFamily:"monospace",lineHeight:1}}>{currentRank.determined?"FINAL":"CURRENT"}</div>
+          <div style={{fontSize:"1.1em",fontWeight:800,color:th.headerText,fontFamily:"'Space Grotesk',sans-serif",lineHeight:1.1,marginTop:2}}>{currentRank.min===currentRank.max?"#"+currentRank.min:"#"+currentRank.min+"-"+currentRank.max}{currentRank.emoji&&" "+currentRank.emoji}</div>
+        </div>}
       </div>
       <div style={{fontSize:"0.8em",color:th.headerDim,fontWeight:600,marginTop:4}}>
         {homeRec?homeRec.w+"-"+homeRec.l:"0-0"} · Pool {homePk} #{homeRank} {homeDone?(homeRank<=2?"→ Tier 1 🏆":"→ Tier 2"):""}
@@ -814,22 +876,13 @@ function App(){
       {sd&&<div style={{maxHeight:200,overflow:"auto",background:mode==="dark"?"#000":"#f0f0f0",borderRadius:4,padding:8,marginTop:4,fontSize:"0.6em",color:th.textMuted,fontFamily:"monospace",whiteSpace:"pre-wrap"}}>{dl.map((l,i)=><div key={i} style={{color:l.includes("→")?th.green:l.includes("ERR")?th.red:l.startsWith("Pool")?th.accent:th.textMuted}}>{l}</div>)}</div>}
     </div>
 
-    {/* Playoffs status */}
-    <div style={{background:th.card,borderBottom:"1px solid "+th.border}}>
-      <div style={{padding:"10px 14px 6px",fontSize:"0.95em",fontWeight:800,color:th.text,fontFamily:"'Space Grotesk',sans-serif",letterSpacing:2,textAlign:"center"}}>PLAYOFFS</div>
-      <div style={{display:"flex",borderTop:"1px solid "+th.border}}>
-        <div onClick={()=>{setTab("playoffs");setTier1Open(true);setTier2Open(false)}} style={{flex:1,textAlign:"center",padding:"14px 8px",cursor:"pointer",borderRight:"1px solid "+th.border}}>
-          <div style={{fontSize:"0.85em",color:th.green,fontFamily:"monospace",fontWeight:800,letterSpacing:1}}>TIER 1 ›</div>
-        </div>
-        <div onClick={()=>{setTab("playoffs");setTier2Open(true);setTier1Open(false)}} style={{flex:1,textAlign:"center",padding:"14px 8px",cursor:"pointer"}}>
-          <div style={{fontSize:"0.85em",color:th.accent,fontFamily:"monospace",fontWeight:800,letterSpacing:1}}>TIER 2 ›</div>
-        </div>
-      </div>
-    </div>
-
-    {/* Tabs */}
+    {/* Primary Tabs: Home + Playoffs */}
     <div style={{display:"flex",borderBottom:"1px solid "+th.border,background:th.syncBg}}>
-      {[{k:"home",l:"🏐 Home"},{k:"pools",l:"All Pools"},{k:"standings",l:"Standings"},{k:"teams",l:"Tier %"},{k:"playoffs",l:"Playoffs"}].map(t=>(<button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"10px 2px",background:"transparent",border:"none",borderBottom:tab===t.k?"2px solid "+th.accent:"2px solid transparent",color:tab===t.k?th.accent:th.textMuted,fontSize:"0.72em",fontWeight:700,cursor:"pointer"}}>{t.l}</button>))}
+      {[{k:"home",l:"🏐 HOME"},{k:"playoffs",l:"🏆 PLAYOFFS"}].map(t=>(<button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"12px 4px",background:tab===t.k?th.accentBg:"transparent",border:"none",borderBottom:tab===t.k?"3px solid "+th.accent:"3px solid transparent",color:tab===t.k?th.accent:th.textDim,fontSize:"0.82em",fontWeight:800,cursor:"pointer",letterSpacing:1}}>{t.l}</button>))}
+    </div>
+    {/* Secondary Tabs: info tabs */}
+    <div style={{display:"flex",borderBottom:"1px solid "+th.border,background:th.syncBg}}>
+      {[{k:"pools",l:"POOLS"},{k:"standings",l:"STANDINGS"},{k:"teams",l:"TIER %"}].map(t=>(<button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,padding:"9px 4px",background:tab===t.k?th.cardHi:"transparent",border:"none",borderBottom:tab===t.k?"2px solid "+th.textDim:"2px solid transparent",color:tab===t.k?th.text:th.textMuted,fontSize:"0.75em",fontWeight:700,cursor:"pointer",fontFamily:"monospace",letterSpacing:1}}>{t.l}</button>))}
     </div>
 
     <div style={{padding:"12px 14px 40px"}}>
@@ -878,15 +931,60 @@ function App(){
             </div>
             <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8,letterSpacing:1}}>QUARTERFINAL</div>
             <QFC qf={qfGame}/>
-            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:14,marginBottom:8,letterSpacing:1}}>{r2Game?.label?.includes("Con")?"CONSOLATION SEMI":"SEMI-FINAL"}</div>
+            <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:14,marginBottom:8,letterSpacing:1}}>{r2Game?.label?.includes("Placement")?"PLACEMENT SEMI":"SEMI-FINAL"}</div>
             {r2Game?<KO g={r2Game}/>:<div style={{fontSize:"0.75em",color:th.textDark,fontStyle:"italic",padding:10}}>Determined after QF</div>}
             <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginTop:14,marginBottom:8,letterSpacing:1}}>FINAL PLACEMENT</div>
-            {r3Game?<KO g={r3Game}/>:<div style={{fontSize:"0.75em",color:th.textDark,fontStyle:"italic",padding:10}}>Determined after {r2Game?.label?.includes("Con")?"Con-Semi":"Semi"}</div>}
+            {r3Game?<KO g={r3Game}/>:<div style={{fontSize:"0.75em",color:th.textDark,fontStyle:"italic",padding:10}}>Determined after {r2Game?.label?.includes("Placement")?"Placement Semi":"Semi"}</div>}
           </>):(<div style={{padding:20,textAlign:"center",color:th.textMuted}}>
             <div style={{fontSize:"1em",marginBottom:8}}>🏐</div>
             <div style={{fontSize:"0.85em"}}>{homeT?.name}'s playoff slot not yet determined</div>
             <div style={{fontSize:"0.75em",color:th.textDark,marginTop:6}}>Pool play needs to complete first</div>
           </div>)}
+
+          {/* TOURNAMENT KEY RESULTS - Semi-Finals & Finals across both tiers */}
+          <div style={{marginTop:22,paddingTop:14,borderTop:"2px solid "+th.accent+"44"}}>
+            <div style={{fontSize:"0.9em",color:th.accent,fontFamily:"'Space Grotesk',sans-serif",fontWeight:800,marginBottom:10,letterSpacing:2}}>⚡ TOURNAMENT RESULTS</div>
+
+            {/* Final Standings map */}
+            {(()=>{
+              const placements=allPlacements;
+              if(placements.length===0)return(<div style={{background:th.card,border:"1px solid "+th.border,borderRadius:8,padding:14,marginBottom:12,textAlign:"center"}}>
+                <div style={{fontSize:"0.72em",color:th.textMuted}}>Final standings populate as placement games complete</div>
+              </div>);
+              return(<div style={{background:th.card,border:"1px solid "+th.accent+"66",borderRadius:8,marginBottom:14,overflow:"hidden"}}>
+                <div style={{padding:"8px 12px",background:th.accentBg,borderBottom:"1px solid "+th.border,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:"0.75em",color:th.accent,fontFamily:"monospace",fontWeight:800,letterSpacing:1}}>FINAL STANDINGS 🏆</span>
+                  <span style={{fontSize:"0.62em",color:th.textDark,fontFamily:"monospace"}}>{placements.length}/16</span>
+                </div>
+                {placements.map(p=>{
+                  const isMe=p.id===homeTeam;
+                  const rc=p.rank===1?th.accent:p.rank===2?th.textDim:p.rank===3?"#cd7f32":th.textMuted;
+                  return(<div key={p.rank} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 12px",borderBottom:"1px solid "+th.border,background:isMe?th.accentBg:"transparent"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0,flex:1}}>
+                      <span style={{fontSize:"0.82em",fontWeight:800,color:rc,fontFamily:"monospace",minWidth:26}}>#{p.rank}</span>
+                      <span style={{fontSize:"0.82em",fontWeight:isMe?800:600,color:isMe?th.accent:th.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.name}</span>
+                    </div>
+                    <span style={{fontSize:"0.58em",color:p.rank<=3?th.accent:th.textDark,fontWeight:700,fontFamily:"monospace",textAlign:"right",marginLeft:8}}>{p.label}</span>
+                  </div>)
+                })}
+              </div>);
+            })()}
+
+            {/* Semi-Finals and Finals - compact list of all 16 placement-track games */}
+            <div style={{fontSize:"0.68em",color:th.green,fontFamily:"monospace",fontWeight:700,marginBottom:6,letterSpacing:1}}>TIER 1 — CHAMPIONSHIP BRACKET</div>
+            {ST1.slice(2,4).map(g=><KO key={g.id} g={g}/>) /* Z7, Z8 semis */}
+            {ST1.slice(6,8).map(g=><KO key={g.id} g={g}/>) /* Z11, Z12 finals */}
+            <div style={{fontSize:"0.68em",color:th.green,fontFamily:"monospace",fontWeight:700,marginTop:10,marginBottom:6,letterSpacing:1}}>TIER 1 — PLACEMENT BRACKET (5TH–8TH)</div>
+            {ST1.slice(0,2).map(g=><KO key={g.id} g={g}/>) /* Z5, Z6 con-semis */}
+            {ST1.slice(4,6).map(g=><KO key={g.id} g={g}/>) /* Z9 5th, Z10 7th */}
+            <div style={{fontSize:"0.68em",color:th.accent,fontFamily:"monospace",fontWeight:700,marginTop:14,marginBottom:6,letterSpacing:1}}>TIER 2 — CHAMPIONSHIP BRACKET</div>
+            {ST2.slice(2,4).map(g=><KO key={g.id} g={g}/>) /* Y7, Y8 semis */}
+            {ST2.slice(6,8).map(g=><KO key={g.id} g={g}/>) /* Y11, Y12 finals */}
+            <div style={{fontSize:"0.68em",color:th.accent,fontFamily:"monospace",fontWeight:700,marginTop:10,marginBottom:6,letterSpacing:1}}>TIER 2 — PLACEMENT BRACKET (13TH–16TH)</div>
+            {ST2.slice(0,2).map(g=><KO key={g.id} g={g}/>) /* Y5, Y6 con-semis */}
+            {ST2.slice(4,6).map(g=><KO key={g.id} g={g}/>) /* Y9 13th, Y10 15th */}
+          </div>
+
           <div style={{marginTop:20,paddingTop:14,borderTop:"1px solid "+th.border}}>
             <div style={{fontSize:"0.72em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,marginBottom:8,letterSpacing:1}}>POOL {homePk} RESULTS</div>
             {POOLS[homePk].games.filter(g=>g.home===homeTeam||g.away===homeTeam).map(g=><GC key={g.id} game={g}/>)}
@@ -967,48 +1065,54 @@ function App(){
           </div>
           <span style={{fontSize:"1.2em",color:th.textMuted,pointerEvents:"none",transition:"transform 0.2s",transform:tier1Open?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
         </div>
-        {tier1Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"8px 10px 10px",marginBottom:10}}>
-          <div onClick={()=>tR("t1qf")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",borderBottom:rOpen.t1qf?"1px solid "+th.border:"none"}}>
-            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>QUARTERFINALS — Sat 6:30 PM</span>
-            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t1qf?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+        {tier1Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"6px 8px 10px",marginBottom:10}}>
+          <div onClick={()=>tR("t1qf")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 10px",marginTop:4,background:th.card,border:"1px solid "+th.border,borderRadius:6,marginBottom:rOpen.t1qf?6:0}}>
+            <span style={{fontSize:"0.88em",color:th.green,fontFamily:"monospace",fontWeight:800,letterSpacing:1.5}}>QUARTERFINALS</span>
+            <span style={{fontSize:"0.7em",color:th.textDark,fontFamily:"monospace",marginLeft:"auto",marginRight:10}}>Sat 6:30 PM</span>
+            <span style={{fontSize:"1em",color:th.green,transition:"transform 0.2s",transform:rOpen.t1qf?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
           </div>
-          {rOpen.t1qf&&<div style={{paddingTop:8}}>{T1Q.map(q=><QFC key={q.id} qf={q}/>)}</div>}
-          <div onClick={()=>tR("t1semi")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",marginTop:rOpen.t1qf?4:0,borderTop:"1px solid "+th.border,borderBottom:rOpen.t1semi?"1px solid "+th.border:"none"}}>
-            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>SEMI-FINALS — Sun 12:15 PM</span>
-            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t1semi?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          {rOpen.t1qf&&<div style={{padding:"4px 4px 0"}}>{T1Q.map(q=><QFC key={q.id} qf={q}/>)}</div>}
+          <div onClick={()=>tR("t1semi")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 10px",marginTop:6,background:th.card,border:"1px solid "+th.border,borderRadius:6,marginBottom:rOpen.t1semi?6:0}}>
+            <span style={{fontSize:"0.88em",color:th.green,fontFamily:"monospace",fontWeight:800,letterSpacing:1.5}}>SEMI-FINALS</span>
+            <span style={{fontSize:"0.7em",color:th.textDark,fontFamily:"monospace",marginLeft:"auto",marginRight:10}}>Sun 12:15 PM</span>
+            <span style={{fontSize:"1em",color:th.green,transition:"transform 0.2s",transform:rOpen.t1semi?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
           </div>
-          {rOpen.t1semi&&<div style={{paddingTop:8}}>{ST1.slice(0,4).map(g=><KO key={g.id} g={g}/>)}</div>}
-          <div onClick={()=>tR("t1final")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",marginTop:rOpen.t1semi?4:0,borderTop:"1px solid "+th.border,borderBottom:rOpen.t1final?"1px solid "+th.border:"none"}}>
-            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>FINALS — Sun 5:15 PM</span>
-            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t1final?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          {rOpen.t1semi&&<div style={{padding:"4px 4px 0"}}>{ST1.slice(0,4).map(g=><KO key={g.id} g={g}/>)}</div>}
+          <div onClick={()=>tR("t1final")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 10px",marginTop:6,background:th.card,border:"1px solid "+th.border,borderRadius:6,marginBottom:rOpen.t1final?6:0}}>
+            <span style={{fontSize:"0.88em",color:th.green,fontFamily:"monospace",fontWeight:800,letterSpacing:1.5}}>FINALS</span>
+            <span style={{fontSize:"0.7em",color:th.textDark,fontFamily:"monospace",marginLeft:"auto",marginRight:10}}>Sun 5:15 PM</span>
+            <span style={{fontSize:"1em",color:th.green,transition:"transform 0.2s",transform:rOpen.t1final?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
           </div>
-          {rOpen.t1final&&<div style={{paddingTop:8}}>{ST1.slice(4).map(g=><KO key={g.id} g={g}/>)}</div>}
+          {rOpen.t1final&&<div style={{padding:"4px 4px 0"}}>{ST1.slice(4).map(g=><KO key={g.id} g={g}/>)}</div>}
         </div>}
 
         {/* TIER 2 */}
         <div onClick={()=>setTier2Open(!tier2Open)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 10px",background:th.card,border:"1px solid "+th.border,borderRadius:tier2Open?"8px 8px 0 0":"8px",cursor:"pointer",marginBottom:tier2Open?0:10}}>
           <div>
-            <div style={{fontSize:"0.9em",color:th.accent,fontFamily:"monospace",fontWeight:800}}>TIER 2 CONSOLATION — Y BRACKET</div>
+            <div style={{fontSize:"0.9em",color:th.accent,fontFamily:"monospace",fontWeight:800}}>TIER 2 PLACEMENT — Y BRACKET</div>
             <div style={{fontSize:"0.72em",color:th.textDark,marginTop:2}}>3rd & 4th from each pool · Sat 5:15 PM</div>
           </div>
           <span style={{fontSize:"1.2em",color:th.textMuted,pointerEvents:"none",transition:"transform 0.2s",transform:tier2Open?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
         </div>
-        {tier2Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"8px 10px 10px",marginBottom:10}}>
-          <div onClick={()=>tR("t2qf")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",borderBottom:rOpen.t2qf?"1px solid "+th.border:"none"}}>
-            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>QUARTERFINALS — Sat 5:15 PM</span>
-            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t2qf?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+        {tier2Open&&<div style={{background:th.syncBg,border:"1px solid "+th.border,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"6px 8px 10px",marginBottom:10}}>
+          <div onClick={()=>tR("t2qf")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 10px",marginTop:4,background:th.card,border:"1px solid "+th.border,borderRadius:6,marginBottom:rOpen.t2qf?6:0}}>
+            <span style={{fontSize:"0.88em",color:th.accent,fontFamily:"monospace",fontWeight:800,letterSpacing:1.5}}>QUARTERFINALS</span>
+            <span style={{fontSize:"0.7em",color:th.textDark,fontFamily:"monospace",marginLeft:"auto",marginRight:10}}>Sat 5:15 PM</span>
+            <span style={{fontSize:"1em",color:th.accent,transition:"transform 0.2s",transform:rOpen.t2qf?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
           </div>
-          {rOpen.t2qf&&<div style={{paddingTop:8}}>{T2Q.map(q=><QFC key={q.id} qf={q}/>)}</div>}
-          <div onClick={()=>tR("t2semi")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",marginTop:rOpen.t2qf?4:0,borderTop:"1px solid "+th.border,borderBottom:rOpen.t2semi?"1px solid "+th.border:"none"}}>
-            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>SEMI-FINALS — Sun 9:45 AM</span>
-            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t2semi?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          {rOpen.t2qf&&<div style={{padding:"4px 4px 0"}}>{T2Q.map(q=><QFC key={q.id} qf={q}/>)}</div>}
+          <div onClick={()=>tR("t2semi")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 10px",marginTop:6,background:th.card,border:"1px solid "+th.border,borderRadius:6,marginBottom:rOpen.t2semi?6:0}}>
+            <span style={{fontSize:"0.88em",color:th.accent,fontFamily:"monospace",fontWeight:800,letterSpacing:1.5}}>SEMI-FINALS</span>
+            <span style={{fontSize:"0.7em",color:th.textDark,fontFamily:"monospace",marginLeft:"auto",marginRight:10}}>Sun 9:45 AM</span>
+            <span style={{fontSize:"1em",color:th.accent,transition:"transform 0.2s",transform:rOpen.t2semi?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
           </div>
-          {rOpen.t2semi&&<div style={{paddingTop:8}}>{ST2.slice(0,4).map(g=><KO key={g.id} g={g}/>)}</div>}
-          <div onClick={()=>tR("t2final")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 4px",marginTop:rOpen.t2semi?4:0,borderTop:"1px solid "+th.border,borderBottom:rOpen.t2final?"1px solid "+th.border:"none"}}>
-            <span style={{fontSize:"0.75em",color:th.textMuted,fontFamily:"monospace",fontWeight:700,letterSpacing:1}}>FINALS — Sun 2:45 PM</span>
-            <span style={{fontSize:"1em",color:th.textMuted,transition:"transform 0.2s",transform:rOpen.t2final?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
+          {rOpen.t2semi&&<div style={{padding:"4px 4px 0"}}>{ST2.slice(0,4).map(g=><KO key={g.id} g={g}/>)}</div>}
+          <div onClick={()=>tR("t2final")} style={{cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 10px",marginTop:6,background:th.card,border:"1px solid "+th.border,borderRadius:6,marginBottom:rOpen.t2final?6:0}}>
+            <span style={{fontSize:"0.88em",color:th.accent,fontFamily:"monospace",fontWeight:800,letterSpacing:1.5}}>FINALS</span>
+            <span style={{fontSize:"0.7em",color:th.textDark,fontFamily:"monospace",marginLeft:"auto",marginRight:10}}>Sun 2:45 PM</span>
+            <span style={{fontSize:"1em",color:th.accent,transition:"transform 0.2s",transform:rOpen.t2final?"rotate(180deg)":"rotate(0)"}}>{"\u25BE"}</span>
           </div>
-          {rOpen.t2final&&<div style={{paddingTop:8}}>{ST2.slice(4).map(g=><KO key={g.id} g={g}/>)}</div>}
+          {rOpen.t2final&&<div style={{padding:"4px 4px 0"}}>{ST2.slice(4).map(g=><KO key={g.id} g={g}/>)}</div>}
         </div>}
       </div>}
     </div>
